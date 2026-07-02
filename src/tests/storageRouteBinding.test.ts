@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   createVNextEditableSession,
-  createVNextSessionStorageRecord,
+  createVNextSessionPackageSnapshot,
   type VNextArtifactJobCreateInput,
 } from "@flowdoc/vnext-core"
 import { loadProductReportMinimalPackage } from "../fixtures/productReportMinimal.js"
@@ -15,6 +15,10 @@ import {
   FLOWDOC_STORAGE_ROUTE_BINDING_SOURCE,
   createFlowDocStorageRouteBinding,
 } from "../storage/storageRouteBinding.js"
+import {
+  FLOWDOC_BACKEND_SESSION_STORAGE_RECORD_SOURCE,
+  createFlowDocBackendSessionStorageRecord,
+} from "../storage/sessionRecord.js"
 
 describe("backend storage route binding", () => {
   const tempRoots: string[] = []
@@ -35,8 +39,9 @@ describe("backend storage route binding", () => {
 
   function sessionRecord() {
     const session = createVNextEditableSession(loadProductReportMinimalPackage())
+    const snapshot = createVNextSessionPackageSnapshot(session)
 
-    return createVNextSessionStorageRecord(session, {
+    return createFlowDocBackendSessionStorageRecord(snapshot, {
       reason: "backend-storage-route-binding-test",
       storageKey: "session:backend-route-binding",
     })
@@ -102,8 +107,13 @@ describe("backend storage route binding", () => {
           },
         },
         session: {
+          source: FLOWDOC_BACKEND_SESSION_STORAGE_RECORD_SOURCE,
           manifest: {
             packageId: "product-report-vnext-minimal",
+          },
+          contracts: {
+            backendOwnedRecord: true,
+            usesCoreSessionPackageSnapshot: true,
           },
         },
       },
@@ -132,6 +142,7 @@ describe("backend storage route binding", () => {
           },
         },
         session: {
+          source: FLOWDOC_BACKEND_SESSION_STORAGE_RECORD_SOURCE,
           manifest: {
             packageId: "product-report-vnext-minimal",
           },
@@ -317,5 +328,15 @@ describe("backend storage route binding", () => {
         job: null,
       },
     })
+  })
+
+  it("keeps session storage binding independent from core storage record helpers", () => {
+    const bindingSource = readFileSync(new URL("../storage/storageRouteBinding.ts", import.meta.url), "utf8")
+    const sessionRecordSource = readFileSync(new URL("../storage/sessionRecord.ts", import.meta.url), "utf8")
+
+    expect(sessionRecordSource).toContain("usesCoreSessionPackageSnapshot: true")
+    expect(bindingSource).not.toContain("createVNextSessionStorageRecord")
+    expect(bindingSource).not.toContain("VNextSessionStorageRecord")
+    expect(sessionRecordSource).not.toContain("createVNextSessionStorageRecord")
   })
 })

@@ -17,6 +17,8 @@ Current slice:
 - route-shaped storage binding for session and artifact record requests
 - backend-owned generation and artifact route parity contracts that call core
   readiness/manifest contracts without importing core route helpers
+- backend-owned session and rich-inline storage records over retained core facts
+- backend-owned submission route contract over core identity/status facts
 - artifact job execution that owns storage lifecycle and accepts an injected renderer
 - filesystem artifact byte store with manifest consistency checks
 
@@ -27,4 +29,5 @@ Not yet included:
 - queue/job workers
 - production export renderer
 - generation/artifact route wiring into the concrete HTTP server
+- rich-inline replay execution and submission workflow execution
 - real deployment config

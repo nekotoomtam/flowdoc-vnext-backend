@@ -2,10 +2,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  createVNextArtifactManifestPlan,
-  type VNextSessionStorageRecord,
-} from "@flowdoc/vnext-core"
+import { createVNextArtifactManifestPlan } from "@flowdoc/vnext-core"
 import {
   FLOWDOC_FILE_JSON_STORAGE_MODE,
   FLOWDOC_FILE_JSON_STORAGE_PACKAGE,
@@ -14,6 +11,7 @@ import {
   createFlowDocFileJsonStorageAdapter,
   createFlowDocFileJsonStorageAdapterPlan,
 } from "../storage/fileJsonStorage.js"
+import type { FlowDocBackendSessionStorageRecord } from "../storage/sessionRecord.js"
 
 function tempStorageRoot(): string {
   return mkdtempSync(join(tmpdir(), "flowdoc-backend-file-json-"))
@@ -50,7 +48,7 @@ describe("backend file JSON storage", () => {
     const created = await adapter.packageSessions.write({
       kind: "package-session",
       key: "session:backend-storage",
-      value: jsonRecord({ sessionId: "backend-storage", title: "first" }) as unknown as VNextSessionStorageRecord,
+      value: jsonRecord({ sessionId: "backend-storage", title: "first" }) as unknown as FlowDocBackendSessionStorageRecord,
       expectedRevision: null,
       idempotencyKey: "idem:create",
       now,
@@ -82,7 +80,7 @@ describe("backend file JSON storage", () => {
     const replay = await adapter.packageSessions.write({
       kind: "package-session",
       key: "session:backend-storage",
-      value: jsonRecord({ sessionId: "backend-storage", title: "ignored replay" }) as unknown as VNextSessionStorageRecord,
+      value: jsonRecord({ sessionId: "backend-storage", title: "ignored replay" }) as unknown as FlowDocBackendSessionStorageRecord,
       expectedRevision: null,
       idempotencyKey: "idem:create",
       now: updatedNow,
@@ -97,7 +95,7 @@ describe("backend file JSON storage", () => {
     const conflict = await adapter.packageSessions.write({
       kind: "package-session",
       key: "session:backend-storage",
-      value: jsonRecord({ sessionId: "backend-storage", title: "stale" }) as unknown as VNextSessionStorageRecord,
+      value: jsonRecord({ sessionId: "backend-storage", title: "stale" }) as unknown as FlowDocBackendSessionStorageRecord,
       expectedRevision: null,
       idempotencyKey: "idem:conflict",
       now: updatedNow,

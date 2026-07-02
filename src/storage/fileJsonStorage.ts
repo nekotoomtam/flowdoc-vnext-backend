@@ -10,14 +10,14 @@ import type {
   VNextArtifactJobRecord,
   VNextArtifactManifestRecord,
   VNextDurableHistorySnapshot,
-  VNextRichInlineSessionPersistenceRecord,
-  VNextSessionStorageRecord,
   VNextStorageOperationIssue,
   VNextStorageReadRequest,
   VNextStorageRecordEnvelope,
   VNextStorageRecordKind,
   VNextStorageWriteRequest,
 } from "@flowdoc/vnext-core"
+import type { FlowDocBackendRichInlineSessionRecord } from "./richInlineSessionRecord.js"
+import type { FlowDocBackendSessionStorageRecord } from "./sessionRecord.js"
 
 export const FLOWDOC_FILE_JSON_STORAGE_SOURCE = "flowdoc-file-json-storage-adapter"
 export const FLOWDOC_FILE_JSON_STORAGE_MODE = "backend-file-backed-json-record-storage"
@@ -291,9 +291,9 @@ export interface FlowDocFileJsonStorageAdapter {
   mode: typeof FLOWDOC_FILE_JSON_STORAGE_MODE
   rootDirectory: string
   contracts: FlowDocFileJsonStorageAdapterContracts
-  packageSessions: FlowDocFileJsonStorageCollection<VNextSessionStorageRecord>
+  packageSessions: FlowDocFileJsonStorageCollection<FlowDocBackendSessionStorageRecord>
   durableHistories: FlowDocFileJsonStorageCollection<VNextDurableHistorySnapshot>
-  richInlineSessions: FlowDocFileJsonStorageCollection<VNextRichInlineSessionPersistenceRecord>
+  richInlineSessions: FlowDocFileJsonStorageCollection<FlowDocBackendRichInlineSessionRecord>
   artifactManifests: FlowDocFileJsonStorageCollection<VNextArtifactManifestRecord>
   artifactJobs: FlowDocFileJsonStorageCollection<VNextArtifactJobRecord>
   plan(): FlowDocFileJsonStorageAdapterPlan
