@@ -1,7 +1,10 @@
+export * from "./artifacts/artifactJobExecution.js"
 export * from "./contracts/mutation.js"
 export * from "./core/coreOperationMapper.js"
 export * from "./fixtures/productReportMinimal.js"
 export * from "./http/server.js"
 export * from "./service/mutationService.js"
+export * from "./storage/fileJsonStorage.js"
 export * from "./storage/packageRepository.js"
+export * from "./storage/storageRouteBinding.js"
 export type JsonValue = unknown

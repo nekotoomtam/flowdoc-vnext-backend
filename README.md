@@ -13,11 +13,15 @@ Current slice:
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
 - stale revision rejection before core mutation
 - read transport envelope for mutation results
+- backend-owned file JSON storage adapter for internal-alpha records
+- route-shaped storage binding for session and artifact record requests
+- artifact job execution that owns storage lifecycle and accepts an injected renderer
+- filesystem artifact byte store with manifest consistency checks
 
 Not yet included:
 
 - auth or tenancy
 - database persistence
 - queue/job workers
-- export rendering
+- production export renderer
 - real deployment config
