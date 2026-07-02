@@ -15,6 +15,8 @@ Current slice:
 - read transport envelope for mutation results
 - backend-owned file JSON storage adapter for internal-alpha records
 - route-shaped storage binding for session and artifact record requests
+- backend-owned generation and artifact route parity contracts that call core
+  readiness/manifest contracts without importing core route helpers
 - artifact job execution that owns storage lifecycle and accepts an injected renderer
 - filesystem artifact byte store with manifest consistency checks
 
@@ -24,4 +26,5 @@ Not yet included:
 - database persistence
 - queue/job workers
 - production export renderer
+- generation/artifact route wiring into the concrete HTTP server
 - real deployment config
