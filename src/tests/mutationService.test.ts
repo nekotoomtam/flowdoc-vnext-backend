@@ -53,6 +53,7 @@ describe("backend mutation service", () => {
       documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
       purpose: "mutation-result",
       sourceKind: "mutation-result",
+      sourceRevision: 4,
     })
     expect(record?.revision).toBe(4)
     expect(record?.packageValue.document.document.sections[0]?.nodes["summary-columns-copy"]).toMatchObject({

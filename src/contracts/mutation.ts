@@ -56,6 +56,7 @@ export interface BackendReadTransportEnvelope {
   receivedAt: number
   requestedAt: number
   sourceKind: "mutation-result"
+  sourceRevision: number
 }
 
 export interface BackendMutationCoreSummary {

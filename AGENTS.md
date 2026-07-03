@@ -19,6 +19,19 @@ contracts, revision safety, package persistence, and clean delegation to
 6. Every mutation must include a base revision check before calling core.
 7. Prefer small, reversible patches with focused tests.
 
+## Cross-Repo Coordination
+
+Before editor/API transport, mutation packet, or retained core contract
+integration work, read
+`../flowdoc-vnext-core/docs/CROSS_REPO_OPERATING_MAP.md`. The backend is the
+service boundary between editor intent and `@flowdoc/vnext-core` semantics:
+own transport envelopes, revision gates, persistence records, request ids, and
+response status here while leaving canonical document semantics in core.
+
+For broad delegated topics, follow the delegated major topic workflow in the
+cross-repo map: split into phases, execute until complete or blocked, then hand
+off with the required review output.
+
 ## Required Review Output
 
 When handing off broad work, include:

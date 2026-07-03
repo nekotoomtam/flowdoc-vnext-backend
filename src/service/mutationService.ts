@@ -164,6 +164,7 @@ export async function executeBackendMutation(
       receivedAt,
       requestedAt,
       sourceKind: "mutation-result",
+      sourceRevision: writeResult.record.revision,
     },
     revision: writeResult.record.revision,
     status: "applied",
