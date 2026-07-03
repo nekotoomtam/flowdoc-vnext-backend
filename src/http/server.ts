@@ -8,8 +8,15 @@ export interface CreateFlowDocBackendServerOptions {
   repository: BackendPackageRepository
 }
 
+const CORS_HEADERS = {
+  "access-control-allow-headers": "content-type",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-origin": "*",
+}
+
 function writeJson(response: ServerResponse, statusCode: number, value: unknown): void {
   response.writeHead(statusCode, {
+    ...CORS_HEADERS,
     "content-type": "application/json; charset=utf-8",
   })
   response.end(JSON.stringify(value))
@@ -56,6 +63,12 @@ function documentIdFromPath(pathname: string, suffix: string): string | null {
 export function createFlowDocBackendServer(options: CreateFlowDocBackendServerOptions): Server {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1")
+
+    if (request.method === "OPTIONS") {
+      response.writeHead(204, CORS_HEADERS)
+      response.end()
+      return
+    }
 
     if (request.method === "GET" && url.pathname === "/health") {
       writeJson(response, 200, {

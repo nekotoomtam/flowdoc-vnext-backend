@@ -46,6 +46,19 @@ describe("backend HTTP server", () => {
       status: "ready",
     })
 
+    const preflight = await fetch(`${baseUrl}/documents/${PRODUCT_REPORT_MINIMAL_DOCUMENT_ID}/mutations`, {
+      headers: {
+        "access-control-request-headers": "content-type",
+        "access-control-request-method": "POST",
+        origin: "http://127.0.0.1:4001",
+      },
+      method: "OPTIONS",
+    })
+
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get("access-control-allow-origin")).toBe("*")
+    expect(preflight.headers.get("access-control-allow-methods")).toContain("POST")
+
     const response = await fetch(`${baseUrl}/documents/${PRODUCT_REPORT_MINIMAL_DOCUMENT_ID}/mutations`, {
       body: JSON.stringify({
         baseRevision: PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
@@ -64,6 +77,7 @@ describe("backend HTTP server", () => {
     })
 
     expect(response.status).toBe(200)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
     await expect(response.json()).resolves.toMatchObject({
       revision: 4,
       status: "applied",

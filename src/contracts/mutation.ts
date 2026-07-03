@@ -6,6 +6,7 @@ import type {
 
 export type BackendMutationSource =
   | "canvas"
+  | "inspector"
   | "keyboard"
   | "outline"
   | "system"
@@ -120,6 +121,7 @@ function readNumber(value: Record<string, unknown>, key: string, issues: Backend
 function readSource(value: unknown, issues: BackendMutationIssue[]): BackendMutationSource | null {
   if (
     value === "canvas"
+    || value === "inspector"
     || value === "keyboard"
     || value === "outline"
     || value === "system"
@@ -128,7 +130,7 @@ function readSource(value: unknown, issues: BackendMutationIssue[]): BackendMuta
     return value
   }
 
-  issues.push(issue("source", "source must be canvas, keyboard, outline, system, or toolbar"))
+  issues.push(issue("source", "source must be canvas, inspector, keyboard, outline, system, or toolbar"))
   return null
 }
 

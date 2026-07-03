@@ -11,9 +11,9 @@ describe("backend mutation contract", () => {
         nodeId: "summary-columns",
         toIndex: 0,
       },
-      reason: "keyboard-reorder",
+      reason: "inspector-reorder",
       requestId: "request-1",
-      source: "keyboard",
+      source: "inspector",
     })
 
     expect(parsed).toMatchObject({
@@ -24,7 +24,7 @@ describe("backend mutation contract", () => {
           nodeId: "summary-columns",
           toIndex: 0,
         },
-        source: "keyboard",
+        source: "inspector",
       },
     })
   })
