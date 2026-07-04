@@ -5,6 +5,11 @@ import {
   PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
 } from "../fixtures/productReportMinimal.js"
+import {
+  loadReorderBlockedTargetQaPackage,
+  REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
+  REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
+} from "../fixtures/reorderBlockedTargetQa.js"
 import { createFlowDocBackendServer } from "../http/server.js"
 import { createInMemoryPackageRepository } from "../storage/packageRepository.js"
 
@@ -34,6 +39,11 @@ describe("backend HTTP server", () => {
         revision: PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
         updatedAt: "2026-06-20T00:00:00.000Z",
       },
+      {
+        packageValue: loadReorderBlockedTargetQaPackage(),
+        revision: REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
+        updatedAt: "2026-07-04T00:00:00.000Z",
+      },
     ])
     const server = createFlowDocBackendServer({
       repository,
@@ -45,6 +55,16 @@ describe("backend HTTP server", () => {
       service: "flowdoc-vnext-backend",
       status: "ready",
     })
+
+    await expect(fetch(`${baseUrl}/documents/${REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID}`)
+      .then((response) => response.json())).resolves.toMatchObject({
+        documentId: REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
+        packageValue: {
+          id: REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
+        },
+        revision: REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
+        status: "found",
+      })
 
     const preflight = await fetch(`${baseUrl}/documents/${PRODUCT_REPORT_MINIMAL_DOCUMENT_ID}/mutations`, {
       headers: {

@@ -13,6 +13,8 @@ Current slice:
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
 - stale revision rejection before core mutation
 - read transport envelope for mutation results
+- dev server seed documents for `product-report-vnext-minimal` and
+  `reorder-blocked-target-qa`
 - backend-owned file JSON storage adapter for internal-alpha records
 - route-shaped storage binding for session and artifact record requests
 - backend-owned generation and artifact route parity contracts that call core
