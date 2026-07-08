@@ -6,6 +6,11 @@ import {
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
 } from "../fixtures/productReportMinimal.js"
 import {
+  loadProductReportPackage,
+  PRODUCT_REPORT_DOCUMENT_ID,
+  PRODUCT_REPORT_INITIAL_REVISION,
+} from "../fixtures/productReport.js"
+import {
   loadReorderBlockedTargetQaPackage,
   REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
   REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
@@ -35,6 +40,11 @@ describe("backend HTTP server", () => {
   it("exposes health and mutation endpoints", async () => {
     const repository = createInMemoryPackageRepository([
       {
+        packageValue: loadProductReportPackage(),
+        revision: PRODUCT_REPORT_INITIAL_REVISION,
+        updatedAt: "2026-06-20T00:00:00.000Z",
+      },
+      {
         packageValue: loadProductReportMinimalPackage(),
         revision: PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
         updatedAt: "2026-06-20T00:00:00.000Z",
@@ -63,6 +73,16 @@ describe("backend HTTP server", () => {
           id: REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
         },
         revision: REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
+        status: "found",
+      })
+
+    await expect(fetch(`${baseUrl}/documents/${PRODUCT_REPORT_DOCUMENT_ID}`)
+      .then((response) => response.json())).resolves.toMatchObject({
+        documentId: PRODUCT_REPORT_DOCUMENT_ID,
+        packageValue: {
+          id: PRODUCT_REPORT_DOCUMENT_ID,
+        },
+        revision: PRODUCT_REPORT_INITIAL_REVISION,
         status: "found",
       })
 

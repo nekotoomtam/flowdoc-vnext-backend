@@ -1,6 +1,7 @@
 export * from "./artifacts/artifactJobExecution.js"
 export * from "./contracts/mutation.js"
 export * from "./core/coreOperationMapper.js"
+export * from "./fixtures/productReport.js"
 export * from "./fixtures/productReportMinimal.js"
 export * from "./fixtures/reorderBlockedTargetQa.js"
 export * from "./http/server.js"

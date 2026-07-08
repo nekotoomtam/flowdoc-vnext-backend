@@ -3,6 +3,10 @@ import {
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
 } from "./fixtures/productReportMinimal.js"
 import {
+  loadProductReportPackage,
+  PRODUCT_REPORT_INITIAL_REVISION,
+} from "./fixtures/productReport.js"
+import {
   loadReorderBlockedTargetQaPackage,
   REORDER_BLOCKED_TARGET_QA_INITIAL_REVISION,
 } from "./fixtures/reorderBlockedTargetQa.js"
@@ -11,6 +15,11 @@ import { createInMemoryPackageRepository } from "./storage/packageRepository.js"
 
 const port = Number.parseInt(process.env.FLOWDOC_BACKEND_PORT ?? "4011", 10)
 const repository = createInMemoryPackageRepository([
+  {
+    packageValue: loadProductReportPackage(),
+    revision: PRODUCT_REPORT_INITIAL_REVISION,
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  },
   {
     packageValue: loadProductReportMinimalPackage(),
     revision: PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
