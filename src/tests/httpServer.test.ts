@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest"
 import type { Server } from "node:http"
 import {
+  loadProductReportBaselinePackage,
+  PRODUCT_REPORT_BASELINE_DOCUMENT_ID,
+  PRODUCT_REPORT_BASELINE_INITIAL_REVISION,
+} from "../fixtures/productReportBaseline.js"
+import {
   loadProductReportMinimalPackage,
   PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
@@ -39,6 +44,11 @@ afterEach(async () => {
 describe("backend HTTP server", () => {
   it("exposes health and mutation endpoints", async () => {
     const repository = createInMemoryPackageRepository([
+      {
+        packageValue: loadProductReportBaselinePackage(),
+        revision: PRODUCT_REPORT_BASELINE_INITIAL_REVISION,
+        updatedAt: "2026-06-30T00:00:00.000Z",
+      },
       {
         packageValue: loadProductReportPackage(),
         revision: PRODUCT_REPORT_INITIAL_REVISION,
@@ -83,6 +93,24 @@ describe("backend HTTP server", () => {
           id: PRODUCT_REPORT_DOCUMENT_ID,
         },
         revision: PRODUCT_REPORT_INITIAL_REVISION,
+        status: "found",
+      })
+
+    await expect(fetch(`${baseUrl}/documents/${PRODUCT_REPORT_BASELINE_DOCUMENT_ID}`)
+      .then((response) => response.json())).resolves.toMatchObject({
+        documentId: PRODUCT_REPORT_BASELINE_DOCUMENT_ID,
+        packageValue: {
+          id: PRODUCT_REPORT_BASELINE_DOCUMENT_ID,
+          document: {
+            document: {
+              sections: [
+                { id: "section-overview" },
+                { id: "section-actions" },
+              ],
+            },
+          },
+        },
+        revision: PRODUCT_REPORT_BASELINE_INITIAL_REVISION,
         status: "found",
       })
 

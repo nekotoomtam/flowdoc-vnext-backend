@@ -1,4 +1,8 @@
 import {
+  loadProductReportBaselinePackage,
+  PRODUCT_REPORT_BASELINE_INITIAL_REVISION,
+} from "./fixtures/productReportBaseline.js"
+import {
   loadProductReportMinimalPackage,
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
 } from "./fixtures/productReportMinimal.js"
@@ -15,6 +19,11 @@ import { createInMemoryPackageRepository } from "./storage/packageRepository.js"
 
 const port = Number.parseInt(process.env.FLOWDOC_BACKEND_PORT ?? "4011", 10)
 const repository = createInMemoryPackageRepository([
+  {
+    packageValue: loadProductReportBaselinePackage(),
+    revision: PRODUCT_REPORT_BASELINE_INITIAL_REVISION,
+    updatedAt: "2026-06-30T00:00:00.000Z",
+  },
   {
     packageValue: loadProductReportPackage(),
     revision: PRODUCT_REPORT_INITIAL_REVISION,
