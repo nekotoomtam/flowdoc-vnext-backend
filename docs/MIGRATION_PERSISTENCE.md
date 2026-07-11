@@ -37,9 +37,9 @@ An accepted migration:
 - records request id, source revision, target revision, retention timestamp, and
   migration summary in a receipt;
 - exposes the new target through the normal document read route;
-- advertises package 3/document 4 through `documentRead` while retaining only
-  package 2/document 3 under `mutation`;
-- rejects active mutations against the migrated record.
+- advertises package 3/document 4 through `documentRead` and advertises only
+  its generic lifecycle operation kinds under `mutation`;
+- rejects unsupported mutations against the migrated record.
 
 The snapshot and receipt reads return clones so callers cannot mutate retained
 repository state.
@@ -69,13 +69,14 @@ includes base revision, document id, request id, source, and reason.
 - Core owns migration semantics and target validation.
 - Backend owns request parsing, idempotency, revision write, snapshot retention,
   and transport results.
-- Package 3/document 4 is persisted without enabling active v4 mutation.
+- Package 3/document 4 is persisted without enabling the active v3 runtime.
 - Capability reporting now advertises persistence and retention as available.
 
 ## FAIL / BLOCKER
 
-- V4 supports block-subtree `node.delete` and same-parent `node.reorder`;
-  remaining operations, pagination, exact renderer, and export are unavailable.
+- V4 supports generic block `node.delete`, `node.duplicate`, and
+  `node.reorder`; text/image editing, pagination, exact renderer, and export
+  are unavailable.
 
 ## RISK
 
@@ -102,5 +103,5 @@ includes base revision, document id, request id, source, and reason.
 
 ## Next Recommended Direction
 
-Lock duplicate ID allocation and shared registry reference rules before adding
-`node.duplicate`.
+Close-audit the generic v4 node lifecycle and build a node-family readiness
+matrix before entering text-block editing semantics.

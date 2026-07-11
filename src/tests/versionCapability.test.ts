@@ -21,7 +21,7 @@ describe("backend version capability contract", () => {
             canCreateRuntimeSession: false,
             canMutate: true,
             canParse: true,
-            supportedOperationKinds: ["node.delete", "node.reorder"],
+            supportedOperationKinds: ["node.delete", "node.duplicate", "node.reorder"],
           },
         },
       },
@@ -45,7 +45,7 @@ describe("backend version capability contract", () => {
             },
             {
               pair: { packageVersion: 3, documentVersion: 4 },
-              operationKinds: ["node.delete", "node.reorder"],
+              operationKinds: ["node.delete", "node.duplicate", "node.reorder"],
             },
           ],
           status: "available",

@@ -13,11 +13,12 @@ Current slice:
 - `GET /capabilities/versions` reporting active read/mutation pairs separately
   from core migration-target support and revision-gated migration persistence
 - package 3/document 4 document reads advertised for the isolated editor
-  read-only consumer while mutation remains package 2/document 3 only
+  partial consumer
 - editor migration consumers can submit explicit revisioned intent and verify
   accepted/replayed targets through the normal document read route
-- package 3/document 4 supports revision-gated block-subtree `node.delete` and
-  same-parent `node.reorder`; capability reporting lists kinds per version pair
+- package 3/document 4 supports revision-gated generic `node.delete`,
+  `node.duplicate`, and `node.reorder`; capability reporting lists kinds per
+  version pair
 - `POST /documents/:id/migrations/package-v3-document-v4` with stale gates,
   idempotent request replay, source snapshot retention, and strict core planning
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`

@@ -139,20 +139,20 @@ describe("backend package migration", () => {
     await expect(store.readMigrationSourceSnapshot(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID, 4)).resolves.toBeNull()
   })
 
-  it("rejects unsupported document mutations after migration", async () => {
+  it("rejects unsupported structural targets after migration", async () => {
     const store = repository()
     await executeBackendMigration(request(), { repository: store })
 
     const result = await executeBackendMutation({
       baseRevision: 4,
       documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
-      operation: { kind: "node.duplicate", nodeId: "summary-columns" },
+      operation: { kind: "node.delete", nodeId: "zone-cover-body" },
       requestId: "mutation-after-migration",
       source: "keyboard",
     }, { repository: store })
 
     expect(result).toMatchObject({
-      issues: [expect.objectContaining({ code: "unsupported-version" })],
+      issues: [expect.objectContaining({ code: "cannot-delete" })],
       revision: 4,
       status: "rejected",
     })

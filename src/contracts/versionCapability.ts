@@ -79,7 +79,7 @@ export function createBackendVersionCapabilityEnvelope(): BackendVersionCapabili
             pair: clonePair(active),
           },
           {
-            operationKinds: ["node.delete", "node.reorder"],
+            operationKinds: ["node.delete", "node.duplicate", "node.reorder"],
             pair: clonePair(migrationTarget),
           },
         ],

@@ -19,7 +19,7 @@ function createRepository() {
 }
 
 describe("backend mutation service", () => {
-  it("persists only node.reorder against package 3/document 4", async () => {
+  it("persists generic node lifecycle operations against package 3/document 4", async () => {
     const repository = createRepository()
     const migrated = await executeBackendMigration({
       baseRevision: 3,
@@ -43,7 +43,7 @@ describe("backend mutation service", () => {
       requestId: "mutation-v4-delete",
       source: "inspector",
     }, { repository })
-    const rejected = await executeBackendMutation({
+    const duplicated = await executeBackendMutation({
       baseRevision: 6,
       documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
       operation: { kind: "node.duplicate", nodeId: "summary-columns" },
@@ -59,13 +59,13 @@ describe("backend mutation service", () => {
       targetNodeIds: ["title"],
     })
     expect(deleted).toMatchObject({ revision: 6, status: "applied", targetNodeIds: ["title"] })
-    expect(record?.packageValue.document.document.sections[0].nodes["zone-cover-body"]).toMatchObject({
-      childIds: ["summary-columns", "detail-table"],
+    expect(duplicated).toMatchObject({
+      revision: 7,
+      status: "applied",
+      targetNodeIds: ["summary-columns", "summary-columns-copy"],
     })
-    expect(rejected).toMatchObject({
-      issues: [expect.objectContaining({ code: "unsupported-version" })],
-      revision: 6,
-      status: "rejected",
+    expect(record?.packageValue.document.document.sections[0].nodes["zone-cover-body"]).toMatchObject({
+      childIds: ["summary-columns", "summary-columns-copy", "detail-table"],
     })
   })
 
