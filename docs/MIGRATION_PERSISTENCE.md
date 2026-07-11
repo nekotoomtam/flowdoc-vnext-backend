@@ -74,7 +74,6 @@ includes base revision, document id, request id, source, and reason.
 
 ## FAIL / BLOCKER
 
-- The editor has no explicit migration command/result workflow.
 - V4 active operation, pagination, exact renderer, and export support remain
   unavailable; the editor consumer is read-only.
 
@@ -103,6 +102,5 @@ includes base revision, document id, request id, source, and reason.
 
 ## Next Recommended Direction
 
-Add an explicit editor migration intent/result boundary that displays blocked
-issues, submits the active revision, handles stale/replayed outcomes, and
-refreshes accepted v4 results through the read-only consumer.
+Define the first v4 active-operation and measured-layout slice while keeping
+the completed editor migration workflow read-only.
