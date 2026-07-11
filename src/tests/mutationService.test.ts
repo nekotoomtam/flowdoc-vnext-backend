@@ -69,6 +69,35 @@ describe("backend mutation service", () => {
     })
   })
 
+  it("does not persist or advance revision for a same-index v4 reorder", async () => {
+    const repository = createRepository()
+    await executeBackendMigration({
+      baseRevision: 3,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      requestId: "mutation-v4-no-op-migration",
+      source: "editor",
+    }, { repository })
+
+    const result = await executeBackendMutation({
+      baseRevision: 4,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: { kind: "node.reorder", nodeId: "title", toIndex: 0 },
+      requestId: "mutation-v4-no-op-reorder",
+      source: "canvas",
+    }, { repository })
+    const record = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
+
+    expect(result).toMatchObject({
+      issues: [expect.objectContaining({ code: "no-op-index" })],
+      revision: 4,
+      status: "rejected",
+    })
+    expect(record?.revision).toBe(4)
+    expect(record?.packageValue.document.document.sections[0].nodes["zone-cover-body"]).toMatchObject({
+      childIds: ["title", "summary-columns", "detail-table"],
+    })
+  })
+
   it("applies core-backed node mutations behind a backend revision envelope", async () => {
     const repository = createRepository()
     const result = await executeBackendMutation({

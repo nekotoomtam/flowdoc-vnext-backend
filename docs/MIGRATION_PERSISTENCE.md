@@ -44,6 +44,10 @@ An accepted migration:
 The snapshot and receipt reads return clones so callers cannot mutate retained
 repository state.
 
+Generic v4 lifecycle operations persist only accepted core results. A reorder
+to the existing sibling index is rejected with `no-op-index`; it does not write
+the package or advance revision.
+
 ## Idempotency
 
 The repository keys receipts by document id and request id. The fingerprint
