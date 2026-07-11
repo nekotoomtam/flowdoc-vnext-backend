@@ -85,7 +85,8 @@ describe("backend HTTP server", () => {
           pairs: [{ packageVersion: 2, documentVersion: 3 }],
         },
         migrationPersistence: {
-          status: "not-wired",
+          sourceSnapshotRetention: true,
+          status: "available",
         },
         mutation: {
           pairs: [{ packageVersion: 2, documentVersion: 3 }],

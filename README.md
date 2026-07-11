@@ -11,7 +11,9 @@ Current slice:
 - in-memory package repository
 - mutation request/response envelope
 - `GET /capabilities/versions` reporting active read/mutation pairs separately
-  from core migration-target support and unwired migration persistence
+  from core migration-target support and revision-gated migration persistence
+- `POST /documents/:id/migrations/package-v3-document-v4` with stale gates,
+  idempotent request replay, source snapshot retention, and strict core planning
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
 - stale revision rejection before core mutation
 - read transport envelope for mutation results
@@ -35,3 +37,6 @@ Not yet included:
 - generation/artifact route wiring into the concrete HTTP server
 - rich-inline replay execution and submission workflow execution
 - real deployment config
+
+See `docs/MIGRATION_PERSISTENCE.md` for the migration route, retained snapshot,
+idempotency, and remaining production-storage boundaries.

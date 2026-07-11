@@ -1,7 +1,6 @@
 import {
   runVNextOperation,
   serializeFlowDocPackageV2DocumentVNext,
-  type FlowDocPackageParseIssue,
 } from "@flowdoc/vnext-core"
 import {
   operationTargetNodeIds,
@@ -11,7 +10,11 @@ import {
   type BackendMutationResultEnvelope,
 } from "../contracts/mutation.js"
 import { toCoreOperationCommand } from "../core/coreOperationMapper.js"
-import type { BackendPackageRepository } from "../storage/packageRepository.js"
+import {
+  isBackendActivePackage,
+  type BackendPackageIssue,
+  type BackendPackageRepository,
+} from "../storage/packageRepository.js"
 
 export interface ExecuteBackendMutationOptions {
   now?: () => number
@@ -32,7 +35,7 @@ function transportIssue(
   }
 }
 
-function packageParseIssueToMutationIssue(issue: FlowDocPackageParseIssue): BackendMutationIssue {
+function packageParseIssueToMutationIssue(issue: BackendPackageIssue): BackendMutationIssue {
   return {
     code: issue.code,
     message: issue.message,
@@ -92,8 +95,25 @@ export async function executeBackendMutation(
     }
   }
 
+  if (!isBackendActivePackage(current.packageValue)) {
+    return {
+      ...base,
+      core: null,
+      issues: [transportIssue(
+        "unsupported-version",
+        "document mutation requires package 2/document 3",
+        { path: "packageValue" },
+      )],
+      revision: current.revision,
+      status: "rejected",
+      targetNodeIds: operationTargetNodeIds(request.operation),
+    }
+  }
+
+  const activePackage = current.packageValue
+
   const command = toCoreOperationCommand(request.operation, request.source)
-  const coreResult = runVNextOperation(current.packageValue.document, command)
+  const coreResult = runVNextOperation(activePackage.document, command)
   if (!coreResult.ok) {
     return {
       ...base,
@@ -107,10 +127,10 @@ export async function executeBackendMutation(
 
   const updatedAt = new Date(receivedAt).toISOString()
   const packageValue = serializeFlowDocPackageV2DocumentVNext({
-    ...current.packageValue,
+    ...activePackage,
     document: coreResult.document,
     meta: {
-      ...current.packageValue.meta,
+      ...activePackage.meta,
       updatedAt,
     },
   })
@@ -143,6 +163,17 @@ export async function executeBackendMutation(
       core: null,
       issues: writeResult.issues.map(packageParseIssueToMutationIssue),
       revision: writeResult.currentRevision,
+      status: "rejected",
+      targetNodeIds: coreResult.operation.targetNodeIds,
+    }
+  }
+
+  if (!isBackendActivePackage(writeResult.record.packageValue)) {
+    return {
+      ...base,
+      core: null,
+      issues: [transportIssue("unsupported-version", "mutation write returned a non-active package")],
+      revision: writeResult.record.revision,
       status: "rejected",
       targetNodeIds: coreResult.operation.targetNodeIds,
     }

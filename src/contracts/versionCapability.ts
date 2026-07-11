@@ -19,8 +19,8 @@ export interface BackendMigrationPlanSupport {
 
 export interface BackendMigrationPersistenceSupport {
   baseRevisionRequired: true
-  sourceSnapshotRetention: false
-  status: "not-wired"
+  sourceSnapshotRetention: true
+  status: "available"
 }
 
 export interface BackendVersionCapabilityEnvelope {
@@ -56,8 +56,8 @@ export function createBackendVersionCapabilityEnvelope(): BackendVersionCapabili
       },
       migrationPersistence: {
         baseRevisionRequired: true,
-        sourceSnapshotRetention: false,
-        status: "not-wired",
+        sourceSnapshotRetention: true,
+        status: "available",
       },
       migrationPlan: {
         source: clonePair(active),

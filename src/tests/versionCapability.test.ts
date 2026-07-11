@@ -40,8 +40,8 @@ describe("backend version capability contract", () => {
         },
         migrationPersistence: {
           baseRevisionRequired: true,
-          sourceSnapshotRetention: false,
-          status: "not-wired",
+          sourceSnapshotRetention: true,
+          status: "available",
         },
       },
     })
