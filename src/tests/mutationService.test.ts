@@ -5,6 +5,7 @@ import {
   PRODUCT_REPORT_MINIMAL_INITIAL_REVISION,
 } from "../fixtures/productReportMinimal.js"
 import { executeBackendMutation } from "../service/mutationService.js"
+import { executeBackendMigration } from "../service/migrationService.js"
 import { createInMemoryPackageRepository } from "../storage/packageRepository.js"
 
 function createRepository() {
@@ -18,6 +19,48 @@ function createRepository() {
 }
 
 describe("backend mutation service", () => {
+  it("persists only node.reorder against package 3/document 4", async () => {
+    const repository = createRepository()
+    const migrated = await executeBackendMigration({
+      baseRevision: 3,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      requestId: "mutation-v4-migration",
+      source: "editor",
+    }, { repository })
+    expect(migrated).toMatchObject({ status: "applied", revision: 4 })
+
+    const reordered = await executeBackendMutation({
+      baseRevision: 4,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: { kind: "node.reorder", nodeId: "title", toIndex: 2 },
+      requestId: "mutation-v4-reorder",
+      source: "canvas",
+    }, { repository })
+    const rejected = await executeBackendMutation({
+      baseRevision: 5,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: { kind: "node.delete", nodeId: "title" },
+      requestId: "mutation-v4-delete",
+      source: "inspector",
+    }, { repository })
+    const record = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
+
+    expect(reordered).toMatchObject({
+      core: { historyIntent: "structure", renderInvalidation: { lane: "node-structure" } },
+      revision: 5,
+      status: "applied",
+      targetNodeIds: ["title"],
+    })
+    expect(record?.packageValue.document.document.sections[0].nodes["zone-cover-body"]).toMatchObject({
+      childIds: ["summary-columns", "detail-table", "title"],
+    })
+    expect(rejected).toMatchObject({
+      issues: [expect.objectContaining({ code: "unsupported-version" })],
+      revision: 5,
+      status: "rejected",
+    })
+  })
+
   it("applies core-backed node mutations behind a backend revision envelope", async () => {
     const repository = createRepository()
     const result = await executeBackendMutation({

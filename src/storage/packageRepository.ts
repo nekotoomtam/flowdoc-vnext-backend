@@ -61,7 +61,7 @@ export type BackendPackageWriteResult =
 export interface BackendPackageWriteRequest {
   documentId: string
   expectedRevision: number
-  packageValue: FlowDocPackageV2DocumentVNext
+  packageValue: BackendStoredPackage
   updatedAt: string
 }
 
@@ -96,6 +96,12 @@ export function isBackendActivePackage(
   value: BackendStoredPackage,
 ): value is FlowDocPackageV2DocumentVNext {
   return value.packageVersion === 2 && value.document.version === 3
+}
+
+export function isBackendV4Package(
+  value: BackendStoredPackage,
+): value is FlowDocPackageV3DocumentV4 {
+  return value.packageVersion === 3 && value.document.version === 4
 }
 
 function cloneJson<T>(value: T): T {
@@ -180,33 +186,32 @@ export function createInMemoryPackageRepository(
       if (current.revision !== request.expectedRevision) {
         return { currentRevision: current.revision, issues: [], status: "revision-conflict" }
       }
-      if (!isBackendActivePackage(current.packageValue)) {
+      if (isBackendActivePackage(current.packageValue) !== isBackendActivePackage(request.packageValue)) {
         return {
           currentRevision: current.revision,
-          issues: [packageIssue("active package writes require package 2/document 3", "unsupported-version")],
+          issues: [packageIssue("package writes cannot change the active version pair", "unsupported-version")],
           status: "unsupported-version",
         }
       }
-
-      const session = safeCreateVNextRuntimeSession(request.packageValue, { source: "canonical-vnext-package" })
-      if (!session.ok) {
+      let packageValue: BackendStoredPackage
+      try {
+        packageValue = isBackendActivePackage(request.packageValue)
+          ? serializeFlowDocPackageV2DocumentVNext(request.packageValue)
+          : serializeFlowDocPackageV3DocumentV4(parseFlowDocPackageV3DocumentV4(request.packageValue))
+      } catch (error) {
         return {
           currentRevision: current.revision,
-          issues: session.issues.map((item) => ({ ...item, severity: "error" as const })),
+          issues: [packageIssue(error instanceof Error ? error.message : "package is invalid")],
           status: "invalid-package",
         }
       }
-      if (session.session.package.id !== request.documentId) {
-        return {
-          currentRevision: current.revision,
-          issues: [packageIssue("package id must match the requested document id")],
-          status: "invalid-package",
-        }
+      if (packageValue.id !== request.documentId) {
+        return { currentRevision: current.revision, issues: [packageIssue("package id must match the requested document id")], status: "invalid-package" }
       }
 
       const record: BackendPackageRecord = {
         documentId: request.documentId,
-        packageValue: serializeFlowDocPackageV2DocumentVNext(session.session.package),
+        packageValue,
         revision: current.revision + 1,
         updatedAt: request.updatedAt,
       }

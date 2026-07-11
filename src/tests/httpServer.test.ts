@@ -77,7 +77,7 @@ describe("backend HTTP server", () => {
     })
 
     await expect(fetch(`${baseUrl}/capabilities/versions`).then((response) => response.json())).resolves.toMatchObject({
-      contractVersion: 2,
+      contractVersion: 3,
       service: "flowdoc-vnext-backend",
       status: "ready",
       backend: {
@@ -92,7 +92,16 @@ describe("backend HTTP server", () => {
           status: "available",
         },
         mutation: {
-          pairs: [{ packageVersion: 2, documentVersion: 3 }],
+          pairs: [
+            { packageVersion: 2, documentVersion: 3 },
+            { packageVersion: 3, documentVersion: 4 },
+          ],
+          operations: expect.arrayContaining([
+            expect.objectContaining({
+              pair: { packageVersion: 3, documentVersion: 4 },
+              operationKinds: ["node.reorder"],
+            }),
+          ]),
         },
       },
     })

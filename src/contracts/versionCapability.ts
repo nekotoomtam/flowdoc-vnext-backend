@@ -2,13 +2,21 @@ import {
   VNEXT_CORE_VERSION_CAPABILITY_CONTRACT,
   type VNextCoreVersionCapabilityContract,
   type VNextPackageDocumentVersionPair,
+  type VNextOperationKind,
 } from "@flowdoc/vnext-core"
 
-export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 2 as const
+export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 3 as const
 
 export interface BackendVersionPairSupport {
   pairs: VNextPackageDocumentVersionPair[]
   status: "available"
+}
+
+export interface BackendMutationPairSupport extends BackendVersionPairSupport {
+  operations: Array<{
+    operationKinds: VNextOperationKind[]
+    pair: VNextPackageDocumentVersionPair
+  }>
 }
 
 export interface BackendMigrationPlanSupport {
@@ -28,7 +36,7 @@ export interface BackendVersionCapabilityEnvelope {
     documentRead: BackendVersionPairSupport
     migrationPersistence: BackendMigrationPersistenceSupport
     migrationPlan: BackendMigrationPlanSupport
-    mutation: BackendVersionPairSupport
+    mutation: BackendMutationPairSupport
   }
   contractVersion: typeof BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION
   core: VNextCoreVersionCapabilityContract
@@ -65,7 +73,17 @@ export function createBackendVersionCapabilityEnvelope(): BackendVersionCapabili
         target: migrationTarget,
       },
       mutation: {
-        pairs: [clonePair(active)],
+        operations: [
+          {
+            operationKinds: ["node.delete", "node.duplicate", "node.reorder"],
+            pair: clonePair(active),
+          },
+          {
+            operationKinds: ["node.reorder"],
+            pair: clonePair(migrationTarget),
+          },
+        ],
+        pairs: [clonePair(active), clonePair(migrationTarget)],
         status: "available",
       },
     },

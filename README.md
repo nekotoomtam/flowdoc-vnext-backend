@@ -16,6 +16,8 @@ Current slice:
   read-only consumer while mutation remains package 2/document 3 only
 - editor migration consumers can submit explicit revisioned intent and verify
   accepted/replayed targets through the normal document read route
+- package 3/document 4 supports revision-gated same-parent `node.reorder` only;
+  capability reporting lists operation kinds per version pair
 - `POST /documents/:id/migrations/package-v3-document-v4` with stale gates,
   idempotent request replay, source snapshot retention, and strict core planning
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`

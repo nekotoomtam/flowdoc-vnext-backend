@@ -74,8 +74,8 @@ includes base revision, document id, request id, source, and reason.
 
 ## FAIL / BLOCKER
 
-- V4 active operation, pagination, exact renderer, and export support remain
-  unavailable; the editor consumer is read-only.
+- V4 supports same-parent `node.reorder`; remaining operations, pagination,
+  exact renderer, and export remain unavailable.
 
 ## RISK
 
@@ -102,5 +102,5 @@ includes base revision, document id, request id, source, and reason.
 
 ## Next Recommended Direction
 
-Define the first v4 active-operation and measured-layout slice while keeping
-the completed editor migration workflow read-only.
+Define v4 delete/duplicate ownership and reference-impact rules before widening
+the operation list.

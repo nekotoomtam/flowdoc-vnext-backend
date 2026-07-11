@@ -1,5 +1,6 @@
 import type {
   FlowDocPackageV2DocumentVNext,
+  FlowDocPackageV3DocumentV4,
   VNextOperationIssue,
   VNextOperationRenderInvalidation,
 } from "@flowdoc/vnext-core"
@@ -52,7 +53,7 @@ export interface BackendReadTransportEnvelope {
   baseRevision: number
   documentId: string
   envelopeId: string
-  packageValue: FlowDocPackageV2DocumentVNext
+  packageValue: FlowDocPackageV2DocumentVNext | FlowDocPackageV3DocumentV4
   purpose: "mutation-result"
   receivedAt: number
   requestedAt: number
