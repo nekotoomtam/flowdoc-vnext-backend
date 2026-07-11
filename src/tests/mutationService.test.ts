@@ -36,11 +36,18 @@ describe("backend mutation service", () => {
       requestId: "mutation-v4-reorder",
       source: "canvas",
     }, { repository })
-    const rejected = await executeBackendMutation({
+    const deleted = await executeBackendMutation({
       baseRevision: 5,
       documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
       operation: { kind: "node.delete", nodeId: "title" },
       requestId: "mutation-v4-delete",
+      source: "inspector",
+    }, { repository })
+    const rejected = await executeBackendMutation({
+      baseRevision: 6,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: { kind: "node.duplicate", nodeId: "summary-columns" },
+      requestId: "mutation-v4-duplicate",
       source: "inspector",
     }, { repository })
     const record = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
@@ -51,12 +58,13 @@ describe("backend mutation service", () => {
       status: "applied",
       targetNodeIds: ["title"],
     })
+    expect(deleted).toMatchObject({ revision: 6, status: "applied", targetNodeIds: ["title"] })
     expect(record?.packageValue.document.document.sections[0].nodes["zone-cover-body"]).toMatchObject({
-      childIds: ["summary-columns", "detail-table", "title"],
+      childIds: ["summary-columns", "detail-table"],
     })
     expect(rejected).toMatchObject({
       issues: [expect.objectContaining({ code: "unsupported-version" })],
-      revision: 5,
+      revision: 6,
       status: "rejected",
     })
   })

@@ -74,8 +74,8 @@ includes base revision, document id, request id, source, and reason.
 
 ## FAIL / BLOCKER
 
-- V4 supports same-parent `node.reorder`; remaining operations, pagination,
-  exact renderer, and export remain unavailable.
+- V4 supports block-subtree `node.delete` and same-parent `node.reorder`;
+  remaining operations, pagination, exact renderer, and export are unavailable.
 
 ## RISK
 
@@ -102,5 +102,5 @@ includes base revision, document id, request id, source, and reason.
 
 ## Next Recommended Direction
 
-Define v4 delete/duplicate ownership and reference-impact rules before widening
-the operation list.
+Lock duplicate ID allocation and shared registry reference rules before adding
+`node.duplicate`.

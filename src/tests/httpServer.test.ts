@@ -99,7 +99,7 @@ describe("backend HTTP server", () => {
           operations: expect.arrayContaining([
             expect.objectContaining({
               pair: { packageVersion: 3, documentVersion: 4 },
-              operationKinds: ["node.reorder"],
+              operationKinds: ["node.delete", "node.reorder"],
             }),
           ]),
         },

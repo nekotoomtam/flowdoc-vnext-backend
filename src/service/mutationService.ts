@@ -100,13 +100,15 @@ export async function executeBackendMutation(
     }
   }
 
-  if (isBackendV4Package(current.packageValue) && request.operation.kind !== "node.reorder") {
+  if (isBackendV4Package(current.packageValue)
+    && request.operation.kind !== "node.delete"
+    && request.operation.kind !== "node.reorder") {
     return {
       ...base,
       core: null,
       issues: [transportIssue(
         "unsupported-version",
-        "package 3/document 4 supports only node.reorder",
+        "package 3/document 4 supports only node.delete and node.reorder",
         { path: "packageValue" },
       )],
       revision: current.revision,
@@ -133,7 +135,7 @@ export async function executeBackendMutation(
   } else {
     const coreResult = runVNextDocumentV4Operation(
       current.packageValue,
-      command as Extract<typeof command, { kind: "node.reorder" }>,
+      command as Extract<typeof command, { kind: "node.delete" | "node.reorder" }>,
     )
     if (!coreResult.ok) {
       return { ...base, core: null, issues: coreResult.issues.map(toBackendMutationIssue), revision: current.revision, status: "rejected", targetNodeIds: operationTargetNodeIds(request.operation) }
