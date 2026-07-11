@@ -76,6 +76,23 @@ describe("backend HTTP server", () => {
       status: "ready",
     })
 
+    await expect(fetch(`${baseUrl}/capabilities/versions`).then((response) => response.json())).resolves.toMatchObject({
+      contractVersion: 1,
+      service: "flowdoc-vnext-backend",
+      status: "ready",
+      backend: {
+        documentRead: {
+          pairs: [{ packageVersion: 2, documentVersion: 3 }],
+        },
+        migrationPersistence: {
+          status: "not-wired",
+        },
+        mutation: {
+          pairs: [{ packageVersion: 2, documentVersion: 3 }],
+        },
+      },
+    })
+
     await expect(fetch(`${baseUrl}/documents/${REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID}`)
       .then((response) => response.json())).resolves.toMatchObject({
         documentId: REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,

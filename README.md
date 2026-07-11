@@ -10,6 +10,8 @@ Current slice:
 
 - in-memory package repository
 - mutation request/response envelope
+- `GET /capabilities/versions` reporting active read/mutation pairs separately
+  from core migration-target support and unwired migration persistence
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
 - stale revision rejection before core mutation
 - read transport envelope for mutation results

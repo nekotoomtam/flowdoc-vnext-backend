@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { parseBackendMutationRequest, type BackendMutationResultEnvelope } from "../contracts/mutation.js"
+import { createBackendVersionCapabilityEnvelope } from "../contracts/versionCapability.js"
 import { executeBackendMutation } from "../service/mutationService.js"
 import type { BackendPackageRepository } from "../storage/packageRepository.js"
 
@@ -75,6 +76,11 @@ export function createFlowDocBackendServer(options: CreateFlowDocBackendServerOp
         service: "flowdoc-vnext-backend",
         status: "ready",
       })
+      return
+    }
+
+    if (request.method === "GET" && url.pathname === "/capabilities/versions") {
+      writeJson(response, 200, createBackendVersionCapabilityEnvelope())
       return
     }
 
