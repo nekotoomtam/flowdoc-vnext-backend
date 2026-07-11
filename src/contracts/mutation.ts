@@ -1,8 +1,10 @@
+import { InlineNodeV4TargetSchema } from "@flowdoc/vnext-core"
 import type {
   FlowDocPackageV2DocumentVNext,
   FlowDocPackageV3DocumentV4,
   VNextOperationIssue,
   VNextOperationRenderInvalidation,
+  InlineNodeV4Target,
 } from "@flowdoc/vnext-core"
 
 export type BackendMutationSource =
@@ -28,6 +30,11 @@ export type BackendMutationOperation =
       kind: "node.reorder"
       nodeId: string
       toIndex: number
+    }
+  | {
+      kind: "text-block.rich-inline.replace"
+      textBlockId: string
+      children: InlineNodeV4Target[]
     }
 
 export type BackendMutationOperationKind = BackendMutationOperation["kind"]
@@ -71,6 +78,7 @@ export interface BackendMutationResultEnvelope {
   core: BackendMutationCoreSummary | null
   documentId: string
   issues: BackendMutationIssue[]
+  idempotency: "new" | "replayed" | null
   operationKind: BackendMutationOperationKind
   readEnvelope?: BackendReadTransportEnvelope
   receivedAt: number
@@ -142,13 +150,31 @@ function readOperation(value: unknown, issues: BackendMutationIssue[]): BackendM
   }
 
   const kind = value.kind
-  const nodeId = typeof value.nodeId === "string" && value.nodeId.trim().length > 0
-    ? value.nodeId
-    : null
-
-  if (!nodeId) {
-    issues.push(issue("operation.nodeId", "operation.nodeId must be a non-empty string"))
+  if (kind === "text-block.rich-inline.replace") {
+    const textBlockId = typeof value.textBlockId === "string" && value.textBlockId.trim().length > 0
+      ? value.textBlockId
+      : null
+    if (!textBlockId) issues.push(issue("operation.textBlockId", "operation.textBlockId must be a non-empty string"))
+    if (!Array.isArray(value.children)) {
+      issues.push(issue("operation.children", "operation.children must be an array"))
+      return null
+    }
+    const children: InlineNodeV4Target[] = []
+    value.children.forEach((candidate, index) => {
+      const parsed = InlineNodeV4TargetSchema.safeParse(candidate)
+      if (parsed.success) children.push(parsed.data)
+      else parsed.error.issues.forEach((item) => issues.push(issue(
+        `operation.children[${index}]${item.path.length === 0 ? "" : `.${item.path.join(".")}`}`,
+        item.message,
+      )))
+    })
+    return textBlockId && children.length === value.children.length
+      ? { kind, textBlockId, children }
+      : null
   }
+
+  const nodeId = typeof value.nodeId === "string" && value.nodeId.trim().length > 0 ? value.nodeId : null
+  if (!nodeId) issues.push(issue("operation.nodeId", "operation.nodeId must be a non-empty string"))
 
   if (kind === "node.delete" || kind === "node.duplicate") {
     return nodeId
@@ -175,7 +201,7 @@ function readOperation(value: unknown, issues: BackendMutationIssue[]): BackendM
 }
 
 export function operationTargetNodeIds(operation: BackendMutationOperation): string[] {
-  return [operation.nodeId]
+  return [operation.kind === "text-block.rich-inline.replace" ? operation.textBlockId : operation.nodeId]
 }
 
 export function toBackendMutationIssue(issueValue: VNextOperationIssue): BackendMutationIssue {

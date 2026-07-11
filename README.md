@@ -17,8 +17,13 @@ Current slice:
 - editor migration consumers can submit explicit revisioned intent and verify
   accepted/replayed targets through the normal document read route
 - package 3/document 4 supports revision-gated generic `node.delete`,
-  `node.duplicate`, and `node.reorder`; capability reporting lists kinds per
+  `node.duplicate`, `node.reorder`, and policy-aware
+  `text-block.rich-inline.replace`; capability reporting lists kinds per
   version pair
+- migrated v4 drafts receive backend-owned structure identity, field contract,
+  and structure policy context; clients submit rich children, not permissions
+- mutation receipts provide exact replay without advancing revision and reject
+  a reused request id carrying a different payload
 - `POST /documents/:id/migrations/package-v3-document-v4` with stale gates,
   idempotent request replay, source snapshot retention, and strict core planning
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
@@ -42,7 +47,7 @@ Not yet included:
 - queue/job workers
 - production export renderer
 - generation/artifact route wiring into the concrete HTTP server
-- rich-inline replay execution and submission workflow execution
+- submission workflow execution
 - real deployment config
 
 See `docs/MIGRATION_PERSISTENCE.md` for the migration route, retained snapshot,

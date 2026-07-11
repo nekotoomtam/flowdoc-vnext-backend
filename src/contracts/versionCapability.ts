@@ -2,10 +2,10 @@ import {
   VNEXT_CORE_VERSION_CAPABILITY_CONTRACT,
   type VNextCoreVersionCapabilityContract,
   type VNextPackageDocumentVersionPair,
-  type VNextOperationKind,
 } from "@flowdoc/vnext-core"
+import type { BackendMutationOperationKind } from "./mutation.js"
 
-export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 3 as const
+export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 4 as const
 
 export interface BackendVersionPairSupport {
   pairs: VNextPackageDocumentVersionPair[]
@@ -14,7 +14,7 @@ export interface BackendVersionPairSupport {
 
 export interface BackendMutationPairSupport extends BackendVersionPairSupport {
   operations: Array<{
-    operationKinds: VNextOperationKind[]
+    operationKinds: BackendMutationOperationKind[]
     pair: VNextPackageDocumentVersionPair
   }>
 }
@@ -79,7 +79,12 @@ export function createBackendVersionCapabilityEnvelope(): BackendVersionCapabili
             pair: clonePair(active),
           },
           {
-            operationKinds: ["node.delete", "node.duplicate", "node.reorder"],
+            operationKinds: [
+              "node.delete",
+              "node.duplicate",
+              "node.reorder",
+              "text-block.rich-inline.replace",
+            ],
             pair: clonePair(migrationTarget),
           },
         ],

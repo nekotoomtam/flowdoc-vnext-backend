@@ -36,10 +36,12 @@ An accepted migration:
 - writes package 3/document 4 at `sourceRevision + 1`;
 - records request id, source revision, target revision, retention timestamp, and
   migration summary in a receipt;
+- creates backend-owned draft identity, field contract, and policy context at
+  the target revision;
 - exposes the new target through the normal document read route;
-- advertises package 3/document 4 through `documentRead` and advertises only
-  its generic lifecycle operation kinds under `mutation`;
-- rejects unsupported mutations against the migrated record.
+- advertises package 3/document 4 through `documentRead` with generic lifecycle
+  operations and `text-block.rich-inline.replace` under `mutation`;
+- advances the draft context revision atomically with each accepted v4 write.
 
 The snapshot and receipt reads return clones so callers cannot mutate retained
 repository state.
@@ -47,6 +49,12 @@ repository state.
 Generic v4 lifecycle operations persist only accepted core results. A reorder
 to the existing sibling index is rejected with `no-op-index`; it does not write
 the package or advance revision.
+
+Rich-inline mutation requests carry only the target text-block id and core v4
+inline children. The backend supplies draft ownership, field definitions,
+structure policy, and session actions before calling core. Accepted mutation
+receipts are stored atomically with the new package revision; exact request
+replay returns that receipt without applying core or writing again.
 
 ## Idempotency
 
@@ -78,16 +86,15 @@ includes base revision, document id, request id, source, and reason.
 
 ## FAIL / BLOCKER
 
-- V4 supports generic block `node.delete`, `node.duplicate`, and
-  `node.reorder`; text/image editing, pagination, exact renderer, and export
-  are unavailable.
+- V4 rich-inline transport does not yet imply a complete WYSIWYG editor,
+  text/image interaction surface, exact renderer, or export workflow.
 
 ## RISK
 
 - The current repository is in-memory; process restart loses records,
   snapshots, and idempotency receipts.
 - A production adapter needs one transaction across target record, source
-  snapshot, and receipt.
+  snapshot, authoring context, and receipt.
 - Retention expiry, authorization, audit identity, and storage quotas are not
   implemented.
 
@@ -101,7 +108,7 @@ includes base revision, document id, request id, source, and reason.
 
 - generation/artifact routes and storage;
 - active mutation semantics for package 2/document 3;
-- editor migration UI or state;
+- editor WYSIWYG activation;
 - v4 layout, rendering, and export;
 - auth, tenancy, deployment, or production database behavior.
 

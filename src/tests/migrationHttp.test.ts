@@ -66,6 +66,50 @@ describe("backend migration HTTP route", () => {
           migrationPersistence: { sourceSnapshotRetention: true, status: "available" },
         },
       })
+
+    const migrated = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
+    const title = migrated?.packageValue.document.document.sections[0].nodes.title
+    if (!title || title.type !== "text-block") throw new Error("migrated title text block missing")
+    const children = structuredClone(title.children)
+    const text = children.find((item) => item.type === "text")
+    if (!text || text.type !== "text") throw new Error("migrated title text missing")
+    text.text = "Updated through HTTP"
+    const mutationRoute = `${baseUrl}/documents/${PRODUCT_REPORT_MINIMAL_DOCUMENT_ID}/mutations`
+    const mutationBody = JSON.stringify({
+      baseRevision: 4,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: {
+        kind: "text-block.rich-inline.replace",
+        textBlockId: "title",
+        children,
+      },
+      requestId: "http-rich-inline-1",
+      source: "canvas",
+    })
+    const mutation = await fetch(mutationRoute, {
+      body: mutationBody,
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    })
+    const replay = await fetch(mutationRoute, {
+      body: mutationBody,
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    })
+
+    expect(mutation.status).toBe(200)
+    await expect(mutation.json()).resolves.toMatchObject({
+      idempotency: "new",
+      operationKind: "text-block.rich-inline.replace",
+      revision: 5,
+      status: "applied",
+      targetNodeIds: ["title"],
+    })
+    await expect(replay.json()).resolves.toMatchObject({
+      idempotency: "replayed",
+      revision: 5,
+      status: "applied",
+    })
   })
 
   it("returns stale and invalid-request HTTP statuses", async () => {

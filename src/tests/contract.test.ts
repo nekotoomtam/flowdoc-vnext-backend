@@ -50,4 +50,47 @@ describe("backend mutation contract", () => {
       ok: false,
     })
   })
+
+  it("parses v4 rich-inline children with the core target grammar", () => {
+    const parsed = parseBackendMutationRequest({
+      baseRevision: 4,
+      documentId: "product-report-vnext-minimal",
+      operation: {
+        kind: "text-block.rich-inline.replace",
+        textBlockId: "title",
+        children: [{ id: "title-text", type: "text", text: "Updated title" }],
+      },
+      requestId: "request-rich-1",
+      source: "canvas",
+    })
+
+    expect(parsed).toMatchObject({
+      ok: true,
+      request: {
+        operation: {
+          kind: "text-block.rich-inline.replace",
+          textBlockId: "title",
+        },
+      },
+    })
+  })
+
+  it("rejects malformed v4 rich-inline children at the transport boundary", () => {
+    const parsed = parseBackendMutationRequest({
+      baseRevision: 4,
+      documentId: "product-report-vnext-minimal",
+      operation: {
+        kind: "text-block.rich-inline.replace",
+        textBlockId: "title",
+        children: [{ id: "title-text", type: "unknown-inline" }],
+      },
+      requestId: "request-rich-invalid",
+      source: "canvas",
+    })
+
+    expect(parsed).toMatchObject({
+      issues: [expect.objectContaining({ path: expect.stringContaining("operation.children[0]") })],
+      ok: false,
+    })
+  })
 })

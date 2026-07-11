@@ -19,6 +19,80 @@ function createRepository() {
 }
 
 describe("backend mutation service", () => {
+  it("commits v4 rich-inline content with backend-owned draft context and exact replay", async () => {
+    const repository = createRepository()
+    await executeBackendMigration({
+      baseRevision: 3,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      requestId: "mutation-v4-rich-migration",
+      source: "editor",
+    }, { repository })
+    const migrated = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
+    const title = migrated?.packageValue.document.document.sections[0].nodes.title
+    if (!title || title.type !== "text-block") throw new Error("migrated title text block missing")
+    const children = structuredClone(title.children)
+    const text = children.find((item) => item.type === "text")
+    if (!text || text.type !== "text") throw new Error("migrated title text missing")
+    text.text = "Updated through backend"
+    const request = {
+      baseRevision: 4,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: {
+        kind: "text-block.rich-inline.replace" as const,
+        textBlockId: "title",
+        children,
+      },
+      requestId: "mutation-v4-rich-1",
+      source: "canvas" as const,
+    }
+
+    const first = await executeBackendMutation(request, { repository })
+    const replay = await executeBackendMutation(request, { repository })
+    const record = await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID)
+
+    expect(first).toMatchObject({
+      core: { historyIntent: "content", renderInvalidation: { lane: "text-content" } },
+      idempotency: "new",
+      revision: 5,
+      status: "applied",
+      targetNodeIds: ["title"],
+    })
+    expect(replay).toMatchObject({ idempotency: "replayed", revision: 5, status: "applied" })
+    expect(record).toMatchObject({
+      authoringContext: {
+        artifact: { kind: "structure-definition-draft", revision: 5 },
+        fieldContract: { kind: "draft-field-contract" },
+      },
+      revision: 5,
+    })
+    const writtenTitle = record?.packageValue.document.document.sections[0].nodes.title
+    expect(writtenTitle?.type === "text-block" && writtenTitle.children).toEqual(children)
+  })
+
+  it("rejects a reused mutation requestId with a different payload", async () => {
+    const repository = createRepository()
+    const first = {
+      baseRevision: 3,
+      documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID,
+      operation: { kind: "node.duplicate" as const, nodeId: "summary-columns" },
+      requestId: "mutation-idempotency-conflict",
+      source: "toolbar" as const,
+    }
+    await executeBackendMutation(first, { repository })
+    const conflict = await executeBackendMutation({
+      ...first,
+      operation: { kind: "node.delete", nodeId: "summary-columns" },
+    }, { repository })
+
+    expect(conflict).toMatchObject({
+      idempotency: null,
+      issues: [expect.objectContaining({ code: "idempotency-conflict" })],
+      revision: 4,
+      status: "rejected",
+    })
+    expect((await repository.read(PRODUCT_REPORT_MINIMAL_DOCUMENT_ID))?.revision).toBe(4)
+  })
+
   it("persists generic node lifecycle operations against package 3/document 4", async () => {
     const repository = createRepository()
     const migrated = await executeBackendMigration({
