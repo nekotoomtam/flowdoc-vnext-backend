@@ -8,9 +8,9 @@ describe("backend version capability contract", () => {
   it("separates active service support from core migration-target recognition", () => {
     const envelope = createBackendVersionCapabilityEnvelope()
 
-    expect(BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION).toBe(1)
+    expect(BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION).toBe(2)
     expect(envelope).toMatchObject({
-      contractVersion: 1,
+      contractVersion: 2,
       service: "flowdoc-vnext-backend",
       status: "ready",
       core: {
@@ -26,7 +26,10 @@ describe("backend version capability contract", () => {
       },
       backend: {
         documentRead: {
-          pairs: [{ packageVersion: 2, documentVersion: 3 }],
+          pairs: [
+            { packageVersion: 2, documentVersion: 3 },
+            { packageVersion: 3, documentVersion: 4 },
+          ],
           status: "available",
         },
         mutation: {
@@ -56,6 +59,10 @@ describe("backend version capability contract", () => {
     expect(second.backend.documentRead.pairs[0]).toEqual({
       packageVersion: 2,
       documentVersion: 3,
+    })
+    expect(second.backend.documentRead.pairs[1]).toEqual({
+      packageVersion: 3,
+      documentVersion: 4,
     })
   })
 })

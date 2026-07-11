@@ -4,7 +4,7 @@ import {
   type VNextPackageDocumentVersionPair,
 } from "@flowdoc/vnext-core"
 
-export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 1 as const
+export const BACKEND_VERSION_CAPABILITY_CONTRACT_VERSION = 2 as const
 
 export interface BackendVersionPairSupport {
   pairs: VNextPackageDocumentVersionPair[]
@@ -51,7 +51,7 @@ export function createBackendVersionCapabilityEnvelope(): BackendVersionCapabili
   return {
     backend: {
       documentRead: {
-        pairs: [clonePair(active)],
+        pairs: [clonePair(active), clonePair(migrationTarget)],
         status: "available",
       },
       migrationPersistence: {

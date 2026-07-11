@@ -37,6 +37,8 @@ An accepted migration:
 - records request id, source revision, target revision, retention timestamp, and
   migration summary in a receipt;
 - exposes the new target through the normal document read route;
+- advertises package 3/document 4 through `documentRead` while retaining only
+  package 2/document 3 under `mutation`;
 - rejects active mutations against the migrated record.
 
 The snapshot and receipt reads return clones so callers cannot mutate retained
@@ -73,8 +75,8 @@ includes base revision, document id, request id, source, and reason.
 ## FAIL / BLOCKER
 
 - The editor has no explicit migration command/result workflow.
-- Active editor/runtime, graph, operation, pagination, and renderer support
-  remain package 2/document 3 only.
+- V4 active operation, pagination, exact renderer, and export support remain
+  unavailable; the editor consumer is read-only.
 
 ## RISK
 
@@ -102,5 +104,5 @@ includes base revision, document id, request id, source, and reason.
 ## Next Recommended Direction
 
 Add an explicit editor migration intent/result boundary that displays blocked
-issues, submits the active revision, handles stale/replayed outcomes, and does
-not load the returned v4 package into the current active runtime.
+issues, submits the active revision, handles stale/replayed outcomes, and
+refreshes accepted v4 results through the read-only consumer.

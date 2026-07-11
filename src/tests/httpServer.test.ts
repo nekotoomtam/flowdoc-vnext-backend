@@ -77,12 +77,15 @@ describe("backend HTTP server", () => {
     })
 
     await expect(fetch(`${baseUrl}/capabilities/versions`).then((response) => response.json())).resolves.toMatchObject({
-      contractVersion: 1,
+      contractVersion: 2,
       service: "flowdoc-vnext-backend",
       status: "ready",
       backend: {
         documentRead: {
-          pairs: [{ packageVersion: 2, documentVersion: 3 }],
+          pairs: [
+            { packageVersion: 2, documentVersion: 3 },
+            { packageVersion: 3, documentVersion: 4 },
+          ],
         },
         migrationPersistence: {
           sourceSnapshotRetention: true,

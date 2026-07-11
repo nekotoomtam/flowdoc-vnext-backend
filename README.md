@@ -12,6 +12,8 @@ Current slice:
 - mutation request/response envelope
 - `GET /capabilities/versions` reporting active read/mutation pairs separately
   from core migration-target support and revision-gated migration persistence
+- package 3/document 4 document reads advertised for the isolated editor
+  read-only consumer while mutation remains package 2/document 3 only
 - `POST /documents/:id/migrations/package-v3-document-v4` with stale gates,
   idempotent request replay, source snapshot retention, and strict core planning
 - core-backed `node.delete`, `node.duplicate`, and `node.reorder`
