@@ -142,6 +142,8 @@ the core finalizer exactly once.
 Persisted job statuses are:
 
 - `waiting-window`: an exact core demand is available;
+- `ready-to-advance`: core returned `partial/output-limit` with no demand and
+  requires one bounded structural continuation using `window: null`;
 - `ready-to-finalize`: the terminal cursor is committed and output is pending;
 - `completed`: authoritative plan and heading map references are committed;
 - `blocked`: a terminal semantic, integrity, or configured-limit blocker;
@@ -156,19 +158,22 @@ or automatic recomposition.
 
 ## Atomic Transition Protocol
 
-One accepted family-window transition follows this order:
+One accepted family-window or structural continuation follows this order:
 
-1. Read the job head and require `waiting-window` plus an exact demand.
-2. Produce or obtain a family window outside the commit lease.
+1. Read the job head and require either `waiting-window` plus an exact demand,
+   or `ready-to-advance` plus no demand.
+2. For `waiting-window`, produce or obtain a family window outside the commit
+   lease. For `ready-to-advance`, retain `window: null` exactly.
 3. Canonicalize the request and reject stale head revision, demand mismatch,
    source mismatch, request-id conflict, or expired/cancelled job.
 4. Acquire a short lease by compare-and-swap on the same head revision.
 5. Call core with the pinned manifest, cursor-before, open-page-before, exact
-   window, and pinned limits.
+   window or exact null continuation, and pinned limits.
 6. For an accepted core result, write and read-verify immutable window,
    closed-page, and transition-receipt records.
 7. Compare-and-swap the leased job head to cursor-after, open-page-after,
-   demand-after or `ready-to-finalize`, new chain tips, and exact counts.
+   demand-after, `ready-to-advance`, or `ready-to-finalize`, new chain tips,
+   and exact counts.
 8. Clear the lease as part of that same head commit and return committed facts.
 
 Step 7 is the logical commit point. A compare-and-swap loss commits no new
@@ -209,6 +214,8 @@ fragments, or repair blocked evidence.
 
 Provider execution may be local or queued later. The scheduler contract stays
 transport-neutral and does not require an HTTP route or queue implementation.
+`ready-to-advance` bypasses providers and calls core with `window: null`; it is
+not a synthetic family demand.
 
 ## Failure And Recovery
 
@@ -254,7 +261,8 @@ The later transport-neutral read model reports bounded facts only:
 - job/source/head revision and durable status;
 - source-current flag and expiry;
 - transition, page, placement, heading, body-item, and work counts;
-- exact current demand family/root identity when waiting;
+- exact current demand family/root identity when waiting, or bounded structural
+  continuation state without a demand;
 - active lease expiry without exposing the lease token;
 - retry availability, attempt count, retry-after time, and latest blocker; and
 - final plan/map references only after `completed`.
@@ -293,6 +301,7 @@ production storage.
 
 - Core and backend ownership are separated at the pure transition boundary.
 - Source revision, manifest, profiles, and limits are pinned for one job.
+- Demand-free core `output-limit` continuation remains explicitly resumable.
 - One bounded job head is the logical commit point.
 - Immutable chunks avoid rewriting the complete page prefix per transition.
 - Lease, compare-and-swap, idempotency, retry, and finalization rules are

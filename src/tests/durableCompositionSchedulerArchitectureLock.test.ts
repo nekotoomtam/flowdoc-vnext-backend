@@ -24,6 +24,8 @@ describe("durable composition scheduler architecture lock", () => {
     expect(doc).toContain("multiRecordTransactions: false")
     expect(doc).toContain("job continues against its pinned source")
     expect(doc).toContain("written by a losing attempt are unreachable staging records")
+    expect(doc).toContain("`ready-to-advance`: core returned `partial/output-limit`")
+    expect(doc).toContain("calls core with `window: null`")
   })
 
   it("keeps runtime and consumer activation closed while selecting contracts next", () => {
