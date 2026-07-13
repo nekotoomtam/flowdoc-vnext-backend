@@ -153,7 +153,7 @@ function readPageChunkFacts(context: Context, includeFingerprint: boolean): {
   readCompositionLiteral(record, "schemaVersion", "schemaVersion", FLOWDOC_BACKEND_COMPOSITION_SCHEMA_VERSION, issues)
   readCompositionLiteral(record, "kind", "kind", "composition-closed-page-chunk", issues)
   const jobId = readCompositionString(record, "jobId", "jobId", issues)
-  const transitionNumber = readCompositionInteger(record, "transitionNumber", "transitionNumber", 1, 1_000_000, issues)
+  const transitionNumber = readCompositionInteger(record, "transitionNumber", "transitionNumber", 0, 1_000_000, issues)
   const manifestFingerprint = readCompositionFingerprint(record, "manifestFingerprint", "manifestFingerprint", issues)
   const windowRef = record.windowRef === null
     ? null
@@ -185,6 +185,11 @@ function readPageChunkFacts(context: Context, includeFingerprint: boolean): {
   }
   if (jobId != null && windowRef != null && (windowRef.jobId !== jobId || windowRef.kind !== "family-window")) issues.push(compositionIssue(
     "composition-window-reference-invalid", "windowRef", "window reference must belong to the exact job and family-window kind",
+  ))
+  if (transitionNumber != null && transitionNumber === 0 && windowRef != null) issues.push(compositionIssue(
+    "composition-initial-page-chunk-window-invalid",
+    "windowRef",
+    "transition-zero initialization page chunk cannot retain a family window",
   ))
   if (pageCountBefore != null && (
     (pageCountBefore === 0) !== (previousChunkFingerprint == null)

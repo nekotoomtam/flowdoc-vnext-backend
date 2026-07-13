@@ -52,6 +52,10 @@ Current slice:
   conformance adapter for immutable records, head creation, CAS, replay,
   concurrent-winner, and orphan-staging behavior; initialization remains next
   in `docs/DURABLE_COMPOSITION_SCHEDULER_REPOSITORY.md`
+- Phase 388 adds revision-gated durable composition initialization with pinned
+  immutable source/manifest evidence, exact core outcome mapping, create replay,
+  and transition-zero initial page chunks in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_INITIALIZATION.md`
 
 Not yet included:
 
