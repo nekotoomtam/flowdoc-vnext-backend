@@ -48,6 +48,10 @@ Current slice:
   heads, immutable page chunks, transition receipts, and redacted progress;
   repository writes and scheduler execution remain closed in
   `docs/DURABLE_COMPOSITION_SCHEDULER_CONTRACTS.md`
+- Phase 387 adds the durable composition repository boundary and in-memory
+  conformance adapter for immutable records, head creation, CAS, replay,
+  concurrent-winner, and orphan-staging behavior; initialization remains next
+  in `docs/DURABLE_COMPOSITION_SCHEDULER_REPOSITORY.md`
 
 Not yet included:
 
