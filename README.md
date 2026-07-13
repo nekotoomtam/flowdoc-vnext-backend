@@ -44,6 +44,10 @@ Current slice:
   demand/window transitions, and terminal finalization; runtime starts in the
   later contract/repository phases documented in
   `docs/DURABLE_COMPOSITION_SCHEDULER_ARCHITECTURE_LOCK.md`
+- Phase 386 adds strict durable composition records for source pins, bounded job
+  heads, immutable page chunks, transition receipts, and redacted progress;
+  repository writes and scheduler execution remain closed in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_CONTRACTS.md`
 
 Not yet included:
 
