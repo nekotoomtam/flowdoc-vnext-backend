@@ -39,12 +39,18 @@ Current slice:
 - backend-owned submission route contract over core identity/status facts
 - artifact job execution that owns storage lifecycle and accepts an injected renderer
 - filesystem artifact byte store with manifest consistency checks
+- Phase 385 locks the durable composition scheduler architecture around pinned
+  source revisions, immutable chunks, a compare-and-swap job head, exact core
+  demand/window transitions, and terminal finalization; runtime starts in the
+  later contract/repository phases documented in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_ARCHITECTURE_LOCK.md`
 
 Not yet included:
 
 - auth or tenancy
 - database persistence
 - queue/job workers
+- durable composition scheduler contracts, repository, and worker execution
 - production export renderer
 - generation/artifact route wiring into the concrete HTTP server
 - submission workflow execution
