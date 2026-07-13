@@ -56,13 +56,18 @@ Current slice:
   immutable source/manifest evidence, exact core outcome mapping, create replay,
   and transition-zero initial page chunks in
   `docs/DURABLE_COMPOSITION_SCHEDULER_INITIALIZATION.md`
+- Phase 389 adds exact-window durable composition advancement with short lease
+  CAS, immutable family/window/page/receipt staging, atomic head commit, exact
+  replay, one concurrent winner, null-window structural continuation, and
+  failure isolation in `docs/DURABLE_COMPOSITION_SCHEDULER_ADVANCEMENT.md`
 
 Not yet included:
 
 - auth or tenancy
 - database persistence
 - queue/job workers
-- durable composition scheduler contracts, repository, and worker execution
+- production durable composition storage, recovery/finalization worker, and
+  routes
 - production export renderer
 - generation/artifact route wiring into the concrete HTTP server
 - submission workflow execution

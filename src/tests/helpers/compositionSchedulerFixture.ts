@@ -5,6 +5,7 @@ import {
   initializeVNextDocumentCompositionV1,
   type VNextDocumentCompositionManifestV1,
   type VNextDocumentCompositionTransitionLimitsV1,
+  type VNextCompositionFragmentWindowV1,
 } from "@flowdoc/vnext-core"
 import {
   compositionFingerprint,
@@ -42,6 +43,7 @@ export function createCompositionSchedulerFixture(): {
   manifest: VNextDocumentCompositionManifestV1
   sourcePin: FlowDocBackendCompositionSourcePinV1
   waitingHead: FlowDocBackendCompositionJobHeadV1
+  window: VNextCompositionFragmentWindowV1
   pageChunk: FlowDocBackendCompositionPageChunkV1
   receipt: FlowDocBackendCompositionTransitionReceiptV1
   readyToFinalizeHead: FlowDocBackendCompositionJobHeadV1
@@ -318,6 +320,7 @@ export function createCompositionSchedulerFixture(): {
     manifest,
     sourcePin,
     waitingHead: waitingResult.jobHead,
+    window,
     pageChunk,
     receipt,
     readyToFinalizeHead: readyResult.jobHead,
@@ -327,6 +330,8 @@ export function createCompositionSchedulerFixture(): {
 export function createCompositionSchedulerContinuationFixture(): {
   manifest: VNextDocumentCompositionManifestV1
   sourcePin: FlowDocBackendCompositionSourcePinV1
+  initialHead: FlowDocBackendCompositionJobHeadV1
+  window: VNextCompositionFragmentWindowV1
   head: FlowDocBackendCompositionJobHeadV1
 } {
   const jobId = "composition-job-continuation"
@@ -465,6 +470,40 @@ export function createCompositionSchedulerContinuationFixture(): {
   })
   if (sourcePinResult.status === "blocked") throw new Error(sourcePinResult.issues[0]?.message)
   const sourcePin = sourcePinResult.sourcePin
+  const initialHeadResult = finalizeFlowDocBackendCompositionJobHeadV1({
+    sourcePin,
+    manifest,
+    value: {
+      source: "flowdoc-backend-composition-job-head",
+      schemaVersion: 1,
+      kind: "composition-job-head",
+      jobId,
+      headRevision: 0,
+      sourcePinFingerprint: sourcePin.fingerprint,
+      manifestFingerprint: manifest.fingerprint,
+      status: "waiting-window",
+      transitionNumber: 0,
+      cursor: initial.cursorAfter,
+      openPage: initial.openPageAfter,
+      demand: initial.demand,
+      chain: {
+        transitionReceiptTipFingerprint: null,
+        closedPageChunkTipFingerprint: null,
+        closedPagePrefixFingerprint: null,
+        pageCount: 0,
+        placementCount: 0,
+        headingCount: 0,
+      },
+      lease: null,
+      retry: { attemptCount: 0, retryAfter: null },
+      blocker: null,
+      finalOutput: null,
+      createdAt,
+      updatedAt: createdAt,
+      expiresAt,
+    },
+  })
+  if (initialHeadResult.status === "blocked") throw new Error(initialHeadResult.issues[0]?.message)
   const headResult = finalizeFlowDocBackendCompositionJobHeadV1({
     sourcePin,
     manifest,
@@ -499,5 +538,11 @@ export function createCompositionSchedulerContinuationFixture(): {
     },
   })
   if (headResult.status === "blocked") throw new Error(headResult.issues[0]?.message)
-  return { manifest, sourcePin, head: headResult.jobHead }
+  return {
+    manifest,
+    sourcePin,
+    initialHead: initialHeadResult.jobHead,
+    window: windowResult.window,
+    head: headResult.jobHead,
+  }
 }

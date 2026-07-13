@@ -114,6 +114,22 @@ describe("durable composition scheduler repository", () => {
       nextHead: fixture.readyToFinalizeHead,
       committedRequest: request,
     })).resolves.toMatchObject({ status: "committed", head: { headRevision: 2, status: "ready-to-finalize" } })
+    const committedRead = await repository.readCommittedRequest({
+      jobId: fixture.sourcePin.jobId,
+      requestId: request.requestId,
+    })
+    expect(committedRead).toMatchObject({
+      status: "found",
+      requestFingerprint: request.requestFingerprint,
+      receiptRef,
+      head: { headRevision: 2 },
+    })
+    if (committedRead.status !== "found") throw new Error("committed request missing")
+    committedRead.head.headRevision = 99
+    await expect(repository.readCommittedRequest({
+      jobId: fixture.sourcePin.jobId,
+      requestId: request.requestId,
+    })).resolves.toMatchObject({ status: "found", head: { headRevision: 2 } })
     await expect(repository.compareAndSwapHead({
       jobId: fixture.sourcePin.jobId,
       expectedHeadRevision: 1,

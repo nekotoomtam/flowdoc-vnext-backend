@@ -55,6 +55,29 @@ export interface FlowDocBackendCompositionCommittedRequestV1 {
   receiptRef: FlowDocBackendCompositionContentRefV1
 }
 
+export type FlowDocBackendCompositionCommittedRequestReadResultV1 =
+  | {
+      status: "found"
+      requestFingerprint: string
+      receiptRef: FlowDocBackendCompositionContentRefV1
+      head: FlowDocBackendCompositionJobHeadV1
+      issues: []
+    }
+  | {
+      status: "not-found"
+      requestFingerprint: null
+      receiptRef: null
+      head: null
+      issues: []
+    }
+  | {
+      status: "invalid"
+      requestFingerprint: null
+      receiptRef: null
+      head: null
+      issues: FlowDocBackendCompositionContractIssue[]
+    }
+
 export type FlowDocBackendCompositionHeadCompareAndSwapResultV1 =
   | { status: "committed" | "idempotent-replay"; head: FlowDocBackendCompositionJobHeadV1; issues: [] }
   | {
@@ -82,6 +105,10 @@ export interface FlowDocBackendCompositionRepositoryV1 {
     head: unknown
   }): Promise<FlowDocBackendCompositionHeadCreateResultV1>
   readHead(jobId: string): Promise<FlowDocBackendCompositionHeadReadResultV1>
+  readCommittedRequest(input: {
+    jobId: string
+    requestId: string
+  }): Promise<FlowDocBackendCompositionCommittedRequestReadResultV1>
   compareAndSwapHead(input: {
     jobId: string
     expectedHeadRevision: number
@@ -269,6 +296,70 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
         status: "found",
         context: cloneCompositionJson(stored.context),
         head: cloneCompositionJson(parsed.jobHead),
+        issues: [],
+      }
+    },
+
+    async readCommittedRequest(input) {
+      if (
+        typeof input.jobId !== "string" || input.jobId.length === 0
+        || typeof input.requestId !== "string" || input.requestId.length === 0
+      ) return {
+        status: "invalid",
+        requestFingerprint: null,
+        receiptRef: null,
+        head: null,
+        issues: [compositionIssue(
+          "composition-committed-request-read-invalid",
+          "",
+          "jobId and requestId are required",
+        )],
+      }
+      const stored = committedRequests.get(requestKey(input.jobId, input.requestId))
+      if (stored == null) return {
+        status: "not-found",
+        requestFingerprint: null,
+        receiptRef: null,
+        head: null,
+        issues: [],
+      }
+      const owner = heads.get(input.jobId)
+      const parsedRef = parseRef(stored.receiptRef)
+      const parsedHead = owner == null
+        ? null
+        : parseFlowDocBackendCompositionJobHeadV1({
+            value: stored.head,
+            sourcePin: owner.context.sourcePin,
+            manifest: owner.context.manifest,
+          })
+      const retained = parsedRef.ref == null
+        ? null
+        : immutable.get(immutableKey(parsedRef.ref.jobId, parsedRef.ref.recordId))
+      if (
+        owner == null || parsedRef.ref == null || parsedHead == null || parsedHead.status === "blocked"
+        || parsedRef.ref.jobId !== input.jobId || parsedRef.ref.kind !== "transition-receipt"
+        || retained == null || retained.ref.recordFingerprint !== parsedRef.ref.recordFingerprint
+        || parsedHead.jobHead.chain.transitionReceiptTipFingerprint !== parsedRef.ref.recordFingerprint
+      ) return {
+        status: "invalid",
+        requestFingerprint: null,
+        receiptRef: null,
+        head: null,
+        issues: [
+          ...parsedRef.issues,
+          ...(parsedHead?.status === "blocked" ? parsedHead.issues : []),
+          compositionIssue(
+            "composition-committed-request-invalid",
+            "requestId",
+            "committed request must retain a validated head snapshot and reachable exact receipt",
+          ),
+        ],
+      }
+      return {
+        status: "found",
+        requestFingerprint: stored.requestFingerprint,
+        receiptRef: cloneCompositionJson(parsedRef.ref),
+        head: cloneCompositionJson(parsedHead.jobHead),
         issues: [],
       }
     },
