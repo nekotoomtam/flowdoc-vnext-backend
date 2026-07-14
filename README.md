@@ -73,6 +73,11 @@ Current slice:
   independent-process CAS, crash/restart recovery, physical quota admission,
   and reachability-safe cleanup; concrete storage remains unselected in
   `docs/DURABLE_COMPOSITION_SCHEDULER_REPOSITORY_CONFORMANCE.md`
+- Phase 393 implements a dynamically gated Node SQLite transactional candidate,
+  passes all twelve conformance scenarios through real child processes and
+  commit-boundary crashes, and completes the 240-page workload across a real
+  connection restart; production activation and admitted batch writes remain
+  blocked in `docs/DURABLE_COMPOSITION_SCHEDULER_SQLITE_CANDIDATE.md`
 
 Not yet included:
 

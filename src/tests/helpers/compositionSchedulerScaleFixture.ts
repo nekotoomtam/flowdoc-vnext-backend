@@ -196,11 +196,14 @@ export interface FlowDocBackendCompositionScaleMetrics {
   finalizationMs: number
 }
 
-export async function runFlowDocBackendCompositionScale(pageCount: number) {
+export async function runFlowDocBackendCompositionScale(pageCount: number, options: {
+  repository?: FlowDocBackendCompositionRepositoryV1
+  reopenRepository?: () => Promise<FlowDocBackendCompositionRepositoryV1>
+} = {}) {
   const startedAt = performance.now()
   const manifest = createManifest(pageCount)
   const packageFingerprint = fp(`backend-scale-package:${pageCount}`)
-  const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+  let base = options.repository ?? createInMemoryFlowDocBackendCompositionRepositoryV1()
   const writesByKind = Object.fromEntries([
     "source-snapshot", "composition-manifest", "family-window", "closed-page-chunk",
     "transition-receipt", "page-plan", "heading-page-map",
@@ -238,6 +241,15 @@ export async function runFlowDocBackendCompositionScale(pageCount: number) {
     async readImmutableByFingerprint(input) {
       metrics.fingerprintReadCount += 1
       return base.readImmutableByFingerprint(input)
+    },
+    async readHead(jobId) {
+      return base.readHead(jobId)
+    },
+    async readCommittedRequest(input) {
+      return base.readCommittedRequest(input)
+    },
+    async readCommittedFinalization(input) {
+      return base.readCommittedFinalization(input)
     },
     async createHead(input) {
       const result = await base.createHead(input)
@@ -298,6 +310,7 @@ export async function runFlowDocBackendCompositionScale(pageCount: number) {
   while (head.status !== "ready-to-finalize") {
     if (sequence > pageCount * 3) throw new Error("scale scheduler exceeded bounded transition count")
     if (!resumed && sequence === pageCount) {
+      if (options.reopenRepository != null) base = await options.reopenRepository()
       const restored = await repository.readHead(head.jobId)
       if (restored.status !== "found") throw new Error("scale restart could not restore the committed head")
       head = restored.head
