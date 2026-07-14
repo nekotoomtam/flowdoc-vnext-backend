@@ -26,6 +26,7 @@ import {
   claimFlowDocBackendCompositionSqliteWorkerAttemptV1,
   completeFlowDocBackendCompositionSqliteWorkerAttemptV1,
   createFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  listFlowDocBackendCompositionSqliteDueWorkerAttemptsV1,
   readFlowDocBackendCompositionSqliteWorkerAttemptV1,
   releaseFlowDocBackendCompositionSqliteWorkerAttemptV1,
   startFlowDocBackendCompositionSqliteWorkerAttemptV1,
@@ -170,6 +171,9 @@ function createRepository(
     },
     async readWorkerAttempt(attemptId) {
       return readFlowDocBackendCompositionSqliteWorkerAttemptV1(database, attemptId)
+    },
+    async listDueWorkerAttempts(input) {
+      return listFlowDocBackendCompositionSqliteDueWorkerAttemptsV1(database, input)
     },
     async claimWorkerAttempt(input) {
       return claimFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)

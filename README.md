@@ -104,6 +104,10 @@ Current slice:
   evidence, exact reconcile/retry release and terminal mapping, duplicate-
   delivery exclusion, interrupted-retry reconciliation, and SQLite restart
   evidence in `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_RUNNER.md`
+- Phase 400 adds bounded due-work discovery for pending schedules and expired
+  claims, a side-effect-free keyset cursor, indexed SQLite projections with
+  Phase 399 schema backfill, and fingerprinted one-page runner observability in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_DUE_WORK_DISCOVERY.md`
 
 Not yet included:
 

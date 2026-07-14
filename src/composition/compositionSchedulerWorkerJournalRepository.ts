@@ -21,6 +21,15 @@ import type {
   FlowDocBackendCompositionWorkerHeadMutationV1,
   FlowDocBackendCompositionWorkerStorageAttemptStateV1,
 } from "./compositionSchedulerWorkerAttempt.js"
+import {
+  compareFlowDocBackendCompositionWorkerDueEntriesV1,
+  createFlowDocBackendCompositionWorkerDueCursorV1,
+  inspectFlowDocBackendCompositionWorkerDueListInputV1,
+  inspectFlowDocBackendCompositionWorkerJournalDueAtV1,
+  isFlowDocBackendCompositionWorkerEntryAfterDueCursorV1,
+  type FlowDocBackendCompositionWorkerDueListInputV1,
+  type FlowDocBackendCompositionWorkerDueListResultV1,
+} from "./compositionSchedulerWorkerDueContract.js"
 
 export const FLOWDOC_BACKEND_COMPOSITION_WORKER_JOURNAL_REPOSITORY_V1_SOURCE =
   "flowdoc-backend-composition-worker-journal-repository"
@@ -69,6 +78,9 @@ export interface FlowDocBackendCompositionWorkerJournalRepositoryV1 {
     input: FlowDocBackendCompositionWorkerJournalCreateInputV1,
   ): Promise<FlowDocBackendCompositionWorkerJournalCreateResultV1>
   readWorkerAttempt(attemptId: string): Promise<FlowDocBackendCompositionWorkerJournalReadResultV1>
+  listDueWorkerAttempts(
+    input: FlowDocBackendCompositionWorkerDueListInputV1,
+  ): Promise<FlowDocBackendCompositionWorkerDueListResultV1>
   claimWorkerAttempt(input: {
     attemptId: string
     expectedJournalRevision: number
@@ -147,6 +159,32 @@ FlowDocBackendCompositionWorkerJournalRepositoryV1 {
       return entry == null
         ? { status: "not-found", entry: null, issues: [] }
         : { status: "found", entry: cloneCompositionJson(entry), issues: [] }
+    },
+
+    async listDueWorkerAttempts(input) {
+      const inspected = inspectFlowDocBackendCompositionWorkerDueListInputV1(input)
+      if (inspected.status === "invalid") return {
+        status: "invalid",
+        entries: null,
+        nextCursor: null,
+        issues: inspected.issues,
+      }
+      const candidates = [...byAttemptId.values()]
+        .filter((entry) => {
+          const dueAt = inspectFlowDocBackendCompositionWorkerJournalDueAtV1(entry)
+          return entry.status !== "completed"
+            && dueAt != null
+            && dueAt <= inspected.input.observedAt
+            && (inspected.input.after == null
+              || isFlowDocBackendCompositionWorkerEntryAfterDueCursorV1(entry, inspected.input.after))
+        })
+        .sort(compareFlowDocBackendCompositionWorkerDueEntriesV1)
+      const hasMore = candidates.length > inspected.input.maximumResultCount
+      const entries = candidates.slice(0, inspected.input.maximumResultCount).map(cloneCompositionJson)
+      const nextCursor = hasMore && entries.length > 0
+        ? createFlowDocBackendCompositionWorkerDueCursorV1(entries.at(-1)!)
+        : null
+      return { status: "ready", entries, nextCursor, issues: [] }
     },
 
     async claimWorkerAttempt(input) {

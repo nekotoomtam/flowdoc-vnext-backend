@@ -128,11 +128,57 @@ export async function openFlowDocBackendCompositionSqliteDatabaseV1(
       mutation_fingerprint TEXT NOT NULL UNIQUE,
       journal_revision INTEGER NOT NULL CHECK (journal_revision >= 0),
       status TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'completed')),
+      discoverable INTEGER NOT NULL CHECK (discoverable IN (0, 1)),
+      due_at TEXT NOT NULL,
       entry_fingerprint TEXT NOT NULL,
       entry_json TEXT NOT NULL
     ) STRICT;
     CREATE INDEX IF NOT EXISTS composition_worker_attempt_status_idx
       ON composition_worker_attempts (status, job_id, journal_revision, attempt_id);
+  `)
+  const workerColumns = database.prepare("PRAGMA table_info(composition_worker_attempts)").all() as Array<{
+    name: string
+  }>
+  if (!workerColumns.some((column) => column.name === "due_at")) {
+    database.exec(`
+      BEGIN IMMEDIATE;
+      ALTER TABLE composition_worker_attempts ADD COLUMN due_at TEXT;
+      UPDATE composition_worker_attempts
+      SET due_at = CASE json_extract(entry_json, '$.status')
+        WHEN 'claimed' THEN json_extract(entry_json, '$.claim.expiresAt')
+        ELSE CASE json_extract(entry_json, '$.state.phase')
+          WHEN 'retry-ready' THEN json_extract(entry_json, '$.state.retryNotBefore')
+          ELSE COALESCE(
+            json_extract(entry_json, '$.state.reconcileNotBefore'),
+            json_extract(entry_json, '$.state.unavailableAt')
+          )
+        END
+      END;
+      COMMIT;
+    `)
+  }
+  if (!workerColumns.some((column) => column.name === "discoverable")) {
+    database.exec(`
+      BEGIN IMMEDIATE;
+      ALTER TABLE composition_worker_attempts ADD COLUMN discoverable INTEGER;
+      UPDATE composition_worker_attempts
+      SET discoverable = CASE status WHEN 'completed' THEN 0 ELSE 1 END;
+      COMMIT;
+    `)
+  }
+  const missingWorkerSchedule = database.prepare(`
+    SELECT attempt_id
+    FROM composition_worker_attempts
+    WHERE due_at IS NULL OR due_at = '' OR discoverable IS NULL
+    LIMIT 1
+  `).get() as { attempt_id: string } | undefined
+  if (missingWorkerSchedule != null) {
+    database.close()
+    throw new Error(`composition worker journal schedule migration failed for ${missingWorkerSchedule.attempt_id}`)
+  }
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS composition_worker_attempt_due_idx
+      ON composition_worker_attempts (discoverable, due_at, attempt_id);
   `)
   return database
 }
