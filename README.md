@@ -108,6 +108,10 @@ Current slice:
   claims, a side-effect-free keyset cursor, indexed SQLite projections with
   Phase 399 schema backfill, and fingerprinted one-page runner observability in
   `docs/DURABLE_COMPOSITION_SCHEDULER_DUE_WORK_DISCOVERY.md`
+- Phase 401 qualifies four independent SQLite due-batch consumers under one
+  forced shared page, exact duplicate-observation versus one-owner execution
+  accounting, expiry reclaim, restart, and bounded fairness/latency evidence in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_DUE_BATCH_QUALIFICATION.md`
 
 Not yet included:
 
