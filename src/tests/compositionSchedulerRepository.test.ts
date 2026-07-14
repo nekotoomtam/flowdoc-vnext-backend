@@ -51,6 +51,13 @@ describe("durable composition scheduler repository", () => {
       ref: { ...ref, recordFingerprint: fp("other-chunk") },
       value: { ...fixture.pageChunk, fingerprint: fp("other-chunk") },
     })).resolves.toMatchObject({ status: "conflict" })
+    await expect(repository.putImmutable({
+      ref: { ...ref, recordId: "chunk-contract-alias" },
+      value: fixture.pageChunk,
+    })).resolves.toMatchObject({
+      status: "conflict",
+      issues: [{ code: "composition-immutable-fingerprint-conflict" }],
+    })
 
     const read = await repository.readImmutable({ jobId: ref.jobId, recordId: ref.recordId })
     expect(read).toMatchObject({ status: "found", ref, value: fixture.pageChunk })

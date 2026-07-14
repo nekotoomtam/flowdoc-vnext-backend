@@ -60,14 +60,18 @@ Current slice:
   CAS, immutable family/window/page/receipt staging, atomic head commit, exact
   replay, one concurrent winner, null-window structural continuation, and
   failure isolation in `docs/DURABLE_COMPOSITION_SCHEDULER_ADVANCEMENT.md`
+- Phase 390 adds explicit expired-lease recovery, retry timing, cancellation,
+  expiry, source-aware progress, reachable-chain verification, immutable final
+  output publication, and exact finalization replay in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_RECOVERY_FINALIZATION.md`
 
 Not yet included:
 
 - auth or tenancy
 - database persistence
 - queue/job workers
-- production durable composition storage, recovery/finalization worker, and
-  routes
+- production durable composition storage, scheduler worker/queue, cleanup,
+  quota enforcement, and routes
 - production export renderer
 - generation/artifact route wiring into the concrete HTTP server
 - submission workflow execution

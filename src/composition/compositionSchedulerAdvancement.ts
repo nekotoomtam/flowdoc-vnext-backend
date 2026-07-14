@@ -263,6 +263,13 @@ export async function advanceFlowDocBackendCompositionV1(input: {
     "jobHead.status",
     "only waiting-window or ready-to-advance jobs can advance",
   )], requestFingerprint, head)
+  if (head.retry.retryAfter != null && Date.parse(input.attempt.acquiredAt) < Date.parse(head.retry.retryAfter)) {
+    return failure("busy", [compositionIssue(
+      "composition-advancement-retry-deferred",
+      "jobHead.retry.retryAfter",
+      "advancement cannot acquire a lease before the retained retry time",
+    )], requestFingerprint, head)
+  }
   if (Date.parse(input.attempt.acquiredAt) < Date.parse(head.updatedAt) || Date.parse(input.attempt.leaseExpiresAt) > Date.parse(head.expiresAt)) {
     return failure("blocked", [compositionIssue(
       "composition-advancement-lease-time-invalid",

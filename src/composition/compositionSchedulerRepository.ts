@@ -31,6 +31,9 @@ export type FlowDocBackendCompositionImmutableReadResultV1 =
   | { status: "found"; ref: FlowDocBackendCompositionContentRefV1; value: unknown; issues: [] }
   | { status: "not-found" | "invalid"; ref: null; value: null; issues: FlowDocBackendCompositionContractIssue[] }
 
+export type FlowDocBackendCompositionImmutableFingerprintReadResultV1 =
+  FlowDocBackendCompositionImmutableReadResultV1
+
 export type FlowDocBackendCompositionHeadReadResultV1 =
   | {
       status: "found"
@@ -54,6 +57,39 @@ export interface FlowDocBackendCompositionCommittedRequestV1 {
   requestFingerprint: string
   receiptRef: FlowDocBackendCompositionContentRefV1
 }
+
+export interface FlowDocBackendCompositionCommittedFinalizationV1 {
+  requestId: string
+  requestFingerprint: string
+  pagePlanRef: FlowDocBackendCompositionContentRefV1
+  headingPageMapRef: FlowDocBackendCompositionContentRefV1
+}
+
+export type FlowDocBackendCompositionCommittedFinalizationReadResultV1 =
+  | {
+      status: "found"
+      requestFingerprint: string
+      pagePlanRef: FlowDocBackendCompositionContentRefV1
+      headingPageMapRef: FlowDocBackendCompositionContentRefV1
+      head: FlowDocBackendCompositionJobHeadV1
+      issues: []
+    }
+  | {
+      status: "not-found"
+      requestFingerprint: null
+      pagePlanRef: null
+      headingPageMapRef: null
+      head: null
+      issues: []
+    }
+  | {
+      status: "invalid"
+      requestFingerprint: null
+      pagePlanRef: null
+      headingPageMapRef: null
+      head: null
+      issues: FlowDocBackendCompositionContractIssue[]
+    }
 
 export type FlowDocBackendCompositionCommittedRequestReadResultV1 =
   | {
@@ -97,6 +133,11 @@ export interface FlowDocBackendCompositionRepositoryV1 {
     jobId: string
     recordId: string
   }): Promise<FlowDocBackendCompositionImmutableReadResultV1>
+  readImmutableByFingerprint(input: {
+    jobId: string
+    kind: FlowDocBackendCompositionContentRefV1["kind"]
+    recordFingerprint: string
+  }): Promise<FlowDocBackendCompositionImmutableFingerprintReadResultV1>
   createHead(input: {
     createRequestId: string
     requestFingerprint: string
@@ -109,12 +150,17 @@ export interface FlowDocBackendCompositionRepositoryV1 {
     jobId: string
     requestId: string
   }): Promise<FlowDocBackendCompositionCommittedRequestReadResultV1>
+  readCommittedFinalization(input: {
+    jobId: string
+    requestId: string
+  }): Promise<FlowDocBackendCompositionCommittedFinalizationReadResultV1>
   compareAndSwapHead(input: {
     jobId: string
     expectedHeadRevision: number
     expectedHeadFingerprint: string
     nextHead: unknown
     committedRequest?: FlowDocBackendCompositionCommittedRequestV1 | null
+    committedFinalization?: FlowDocBackendCompositionCommittedFinalizationV1 | null
   }): Promise<FlowDocBackendCompositionHeadCompareAndSwapResultV1>
 }
 
@@ -131,6 +177,13 @@ interface StoredCommittedRequest {
   head: FlowDocBackendCompositionJobHeadV1
 }
 
+interface StoredCommittedFinalization {
+  requestFingerprint: string
+  pagePlanRef: FlowDocBackendCompositionContentRefV1
+  headingPageMapRef: FlowDocBackendCompositionContentRefV1
+  head: FlowDocBackendCompositionJobHeadV1
+}
+
 function byteLength(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), "utf8")
 }
@@ -141,6 +194,14 @@ function immutableKey(jobId: string, recordId: string): string {
 
 function requestKey(jobId: string, requestId: string): string {
   return `${jobId}\u0000${requestId}`
+}
+
+function fingerprintKey(
+  jobId: string,
+  kind: FlowDocBackendCompositionContentRefV1["kind"],
+  fingerprint: string,
+): string {
+  return `${jobId}\u0000${kind}\u0000${fingerprint}`
 }
 
 function parseRef(value: unknown): {
@@ -160,8 +221,10 @@ const terminalStatuses = new Set(["completed", "blocked", "cancelled", "expired"
 
 export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBackendCompositionRepositoryV1 {
   const immutable = new Map<string, { ref: FlowDocBackendCompositionContentRefV1; value: unknown }>()
+  const immutableFingerprints = new Map<string, string>()
   const heads = new Map<string, StoredHead>()
   const committedRequests = new Map<string, StoredCommittedRequest>()
+  const committedFinalizations = new Map<string, StoredCommittedFinalization>()
 
   return {
     source: FLOWDOC_BACKEND_COMPOSITION_REPOSITORY_V1_SOURCE,
@@ -203,7 +266,19 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
               )],
             }
       }
+      const byFingerprint = fingerprintKey(ref.jobId, ref.kind, ref.recordFingerprint)
+      const fingerprintOwnerKey = immutableFingerprints.get(byFingerprint)
+      if (fingerprintOwnerKey != null && fingerprintOwnerKey !== key) return {
+        status: "conflict",
+        ref: null,
+        issues: [compositionIssue(
+          "composition-immutable-fingerprint-conflict",
+          "ref.recordFingerprint",
+          "immutable fingerprint was already retained under another record id",
+        )],
+      }
       immutable.set(key, { ref: cloneCompositionJson(ref), value: cloneCompositionJson(input.value) })
+      immutableFingerprints.set(byFingerprint, key)
       return { status: "written", ref: cloneCompositionJson(ref), issues: [] }
     },
 
@@ -225,6 +300,40 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
             issues: [compositionIssue("composition-immutable-not-found", "recordId", "immutable record was not found")],
           }
         : { status: "found", ref: cloneCompositionJson(stored.ref), value: cloneCompositionJson(stored.value), issues: [] }
+    },
+
+    async readImmutableByFingerprint(input) {
+      const issues: FlowDocBackendCompositionContractIssue[] = []
+      const probe = parseRef({
+        jobId: input.jobId,
+        kind: input.kind,
+        recordId: "fingerprint-probe",
+        recordFingerprint: input.recordFingerprint,
+        byteLength: 1,
+      })
+      if (probe.ref == null) return { status: "invalid", ref: null, value: null, issues: probe.issues }
+      const key = immutableFingerprints.get(fingerprintKey(input.jobId, input.kind, input.recordFingerprint))
+      if (key == null) return {
+        status: "not-found",
+        ref: null,
+        value: null,
+        issues: [compositionIssue(
+          "composition-immutable-fingerprint-not-found",
+          "recordFingerprint",
+          "immutable record fingerprint was not found for the exact job and kind",
+        )],
+      }
+      const stored = immutable.get(key)
+      if (stored == null || stored.ref.jobId !== input.jobId || stored.ref.kind !== input.kind
+        || stored.ref.recordFingerprint !== input.recordFingerprint) {
+        issues.push(compositionIssue(
+          "composition-immutable-fingerprint-index-invalid",
+          "recordFingerprint",
+          "immutable fingerprint index does not resolve to the exact retained record",
+        ))
+        return { status: "invalid", ref: null, value: null, issues }
+      }
+      return { status: "found", ref: cloneCompositionJson(stored.ref), value: cloneCompositionJson(stored.value), issues: [] }
     },
 
     async createHead(input) {
@@ -364,12 +473,90 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
       }
     },
 
+    async readCommittedFinalization(input) {
+      if (
+        typeof input.jobId !== "string" || input.jobId.length === 0
+        || typeof input.requestId !== "string" || input.requestId.length === 0
+      ) return {
+        status: "invalid",
+        requestFingerprint: null,
+        pagePlanRef: null,
+        headingPageMapRef: null,
+        head: null,
+        issues: [compositionIssue(
+          "composition-finalization-request-read-invalid",
+          "",
+          "jobId and requestId are required",
+        )],
+      }
+      const stored = committedFinalizations.get(requestKey(input.jobId, input.requestId))
+      if (stored == null) return {
+        status: "not-found",
+        requestFingerprint: null,
+        pagePlanRef: null,
+        headingPageMapRef: null,
+        head: null,
+        issues: [],
+      }
+      const owner = heads.get(input.jobId)
+      const plan = parseRef(stored.pagePlanRef)
+      const map = parseRef(stored.headingPageMapRef)
+      const parsedHead = owner == null ? null : parseFlowDocBackendCompositionJobHeadV1({
+        value: stored.head,
+        sourcePin: owner.context.sourcePin,
+        manifest: owner.context.manifest,
+      })
+      const retainedPlan = plan.ref == null ? null : immutable.get(immutableKey(plan.ref.jobId, plan.ref.recordId))
+      const retainedMap = map.ref == null ? null : immutable.get(immutableKey(map.ref.jobId, map.ref.recordId))
+      if (
+        owner == null || plan.ref == null || map.ref == null || parsedHead == null || parsedHead.status === "blocked"
+        || plan.ref.jobId !== input.jobId || plan.ref.kind !== "page-plan" || retainedPlan == null
+        || map.ref.jobId !== input.jobId || map.ref.kind !== "heading-page-map" || retainedMap == null
+        || parsedHead.jobHead.status !== "completed" || parsedHead.jobHead.finalOutput == null
+        || !same(parsedHead.jobHead.finalOutput.pagePlanRef, plan.ref)
+        || !same(parsedHead.jobHead.finalOutput.headingPageMapRef, map.ref)
+      ) return {
+        status: "invalid",
+        requestFingerprint: null,
+        pagePlanRef: null,
+        headingPageMapRef: null,
+        head: null,
+        issues: [
+          ...plan.issues,
+          ...map.issues,
+          ...(parsedHead?.status === "blocked" ? parsedHead.issues : []),
+          compositionIssue(
+            "composition-finalization-request-invalid",
+            "requestId",
+            "finalization request must retain validated output refs and its completed head snapshot",
+          ),
+        ],
+      }
+      return {
+        status: "found",
+        requestFingerprint: stored.requestFingerprint,
+        pagePlanRef: cloneCompositionJson(plan.ref),
+        headingPageMapRef: cloneCompositionJson(map.ref),
+        head: cloneCompositionJson(parsedHead.jobHead),
+        issues: [],
+      }
+    },
+
     async compareAndSwapHead(input) {
       const stored = heads.get(input.jobId)
       if (stored == null) return {
         status: "not-found",
         head: null,
         issues: [compositionIssue("composition-head-not-found", "jobId", "composition job head was not found")],
+      }
+      if (input.committedRequest != null && input.committedFinalization != null) return {
+        status: "invalid",
+        head: null,
+        issues: [compositionIssue(
+          "composition-head-commit-kind-invalid",
+          "",
+          "one head commit cannot retain transition and finalization requests together",
+        )],
       }
       if (input.committedRequest != null) {
         const replay = committedRequests.get(requestKey(input.jobId, input.committedRequest.requestId))
@@ -386,6 +573,20 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
                 )],
               }
         }
+      }
+      if (input.committedFinalization != null) {
+        const replay = committedFinalizations.get(requestKey(input.jobId, input.committedFinalization.requestId))
+        if (replay != null) return replay.requestFingerprint === input.committedFinalization.requestFingerprint
+          ? { status: "idempotent-replay", head: cloneCompositionJson(replay.head), issues: [] }
+          : {
+              status: "conflict",
+              head: null,
+              issues: [compositionIssue(
+                "composition-finalization-request-conflict",
+                "committedFinalization.requestId",
+                "finalization request id was already committed with different content",
+              )],
+            }
       }
       if (
         stored.head.headRevision !== input.expectedHeadRevision
@@ -437,12 +638,44 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
           )],
         }
       }
+      if (input.committedFinalization != null) {
+        const request = input.committedFinalization
+        const plan = parseRef(request.pagePlanRef)
+        const map = parseRef(request.headingPageMapRef)
+        const retainedPlan = plan.ref == null ? null : immutable.get(immutableKey(plan.ref.jobId, plan.ref.recordId))
+        const retainedMap = map.ref == null ? null : immutable.get(immutableKey(map.ref.jobId, map.ref.recordId))
+        if (
+          plan.ref == null || map.ref == null || retainedPlan == null || retainedMap == null
+          || plan.ref.jobId !== input.jobId || plan.ref.kind !== "page-plan"
+          || map.ref.jobId !== input.jobId || map.ref.kind !== "heading-page-map"
+          || next.jobHead.status !== "completed" || next.jobHead.finalOutput == null
+          || !same(next.jobHead.finalOutput.pagePlanRef, plan.ref)
+          || !same(next.jobHead.finalOutput.headingPageMapRef, map.ref)
+        ) return {
+          status: "invalid",
+          head: null,
+          issues: [compositionIssue(
+            "composition-committed-finalization-invalid",
+            "committedFinalization",
+            "committed finalization requires retained exact outputs reachable from the completed head",
+          )],
+        }
+      }
       stored.head = cloneCompositionJson(next.jobHead)
       if (input.committedRequest != null) committedRequests.set(
         requestKey(input.jobId, input.committedRequest.requestId),
         {
           requestFingerprint: input.committedRequest.requestFingerprint,
           receiptRef: cloneCompositionJson(input.committedRequest.receiptRef),
+          head: cloneCompositionJson(next.jobHead),
+        },
+      )
+      if (input.committedFinalization != null) committedFinalizations.set(
+        requestKey(input.jobId, input.committedFinalization.requestId),
+        {
+          requestFingerprint: input.committedFinalization.requestFingerprint,
+          pagePlanRef: cloneCompositionJson(input.committedFinalization.pagePlanRef),
+          headingPageMapRef: cloneCompositionJson(input.committedFinalization.headingPageMapRef),
           head: cloneCompositionJson(next.jobHead),
         },
       )
