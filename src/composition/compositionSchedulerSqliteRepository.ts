@@ -18,6 +18,7 @@ import {
   createFlowDocBackendCompositionSqliteHeadV1,
   readFlowDocBackendCompositionSqliteCommittedFinalizationV1,
   readFlowDocBackendCompositionSqliteCommittedRequestV1,
+  readFlowDocBackendCompositionSqliteHeadCreationV1,
   readFlowDocBackendCompositionSqliteHeadV1,
 } from "./compositionSchedulerSqliteHeadStore.js"
 import { cleanupFlowDocBackendCompositionSqliteUnreachableV1 } from "./compositionSchedulerSqliteMaintenance.js"
@@ -123,6 +124,9 @@ function createRepository(
     },
     async readHead(jobId) {
       return readFlowDocBackendCompositionSqliteHeadV1(database, jobId)
+    },
+    async readHeadCreation(jobId) {
+      return readFlowDocBackendCompositionSqliteHeadCreationV1(database, jobId)
     },
     async readCommittedRequest(input) {
       return readFlowDocBackendCompositionSqliteCommittedRequestV1(database, input)

@@ -175,10 +175,11 @@ describe("composition scheduler SQLite trusted conformance runner", () => {
 
     const createRoot = root()
     const createDatabase = join(createRoot, "create.sqlite")
+    const createHeadInput = createInput(fixture, "conformance-create")
     const createPayload: WorkerPayload = {
       databasePath: createDatabase,
       action: "create-head",
-      input: createInput(fixture, "conformance-create"),
+      input: createHeadInput,
     }
     const createRuns = await Promise.all([
       runWorker(createRoot, createPayload),
@@ -190,9 +191,21 @@ describe("composition scheduler SQLite trusted conformance runner", () => {
     expect(createStatuses).toEqual(["created", "idempotent-replay"])
     const createdRepository = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath: createDatabase })
     expect(await createdRepository.readHead(fixture.sourcePin.jobId)).toMatchObject({ status: "found", head: { headRevision: 0 } })
+    const creationIdentity = await createdRepository.readHeadCreation(fixture.sourcePin.jobId)
+    expect(creationIdentity).toMatchObject({
+      status: "found",
+      createRequestId: "conformance-create",
+      requestFingerprint: createHeadInput.requestFingerprint,
+      head: { headRevision: 0, fingerprint: fixture.waitingHead.fingerprint },
+    })
     createdRepository.close()
     restartCount += 1
     passed("atomic-head-create", { createStatuses }, 3)
+    passed("head-creation-identity-read", {
+      status: creationIdentity.status,
+      createRequestId: creationIdentity.createRequestId,
+      requestFingerprint: creationIdentity.requestFingerprint,
+    }, 3)
 
     const immutableRoot = root()
     const immutableDatabase = join(immutableRoot, "immutable.sqlite")

@@ -255,6 +255,9 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
     async readHead(jobId) {
       return base.readHead(jobId)
     },
+    async readHeadCreation(jobId) {
+      return base.readHeadCreation(jobId)
+    },
     async readCommittedRequest(input) {
       return base.readCommittedRequest(input)
     },

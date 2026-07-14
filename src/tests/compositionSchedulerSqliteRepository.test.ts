@@ -8,10 +8,16 @@ import {
   compositionFingerprint,
   createFlowDocBackendCompositionHeadWithAvailabilityV1,
   createFlowDocBackendCompositionSqliteRepositoryV1,
+  createFlowDocBackendCompositionWorkerStorageAttemptV1,
+  finalizeFlowDocBackendCompositionV1,
   finalizeFlowDocBackendCompositionJobHeadV1,
+  reconcileFlowDocBackendCompositionWorkerStorageAttemptV1,
+  retryFlowDocBackendCompositionWorkerStorageAttemptV1,
   supportsFlowDocBackendCompositionSqliteCandidateV1,
   type FlowDocBackendCompositionJobHeadV1,
+  type FlowDocBackendCompositionRepositoryV1,
   type FlowDocBackendCompositionSqliteRepositoryV1,
+  type FlowDocBackendCompositionWorkerHeadMutationV1,
 } from "../index.js"
 import { contentRef, createCompositionSchedulerFixture } from "./helpers/compositionSchedulerFixture.js"
 
@@ -39,6 +45,63 @@ function leasedHead(
   })
   if (result.status === "blocked") throw new Error(result.issues[0]?.message)
   return result.jobHead
+}
+
+async function seedLeasedTransition(
+  repository: FlowDocBackendCompositionRepositoryV1,
+  fixture: ReturnType<typeof createCompositionSchedulerFixture>,
+) {
+  await repository.createHead({
+    createRequestId: "create-worker-finalization",
+    requestFingerprint: fp("create-worker-finalization"),
+    sourcePin: fixture.sourcePin,
+    manifest: fixture.manifest,
+    head: fixture.waitingHead,
+  })
+  const windowRef = fixture.receipt.windowRef
+  const pageChunkRef = fixture.receipt.pageChunkRef
+  if (windowRef == null || pageChunkRef == null) throw new Error("worker fixture requires transition outputs")
+  const receiptRef = contentRef(
+    fixture.sourcePin.jobId,
+    "transition-receipt",
+    "worker-transition-receipt",
+    fixture.receipt.fingerprint,
+    bytes(fixture.receipt),
+  )
+  for (const [ref, value] of [
+    [windowRef, fixture.window],
+    [pageChunkRef, fixture.pageChunk],
+    [receiptRef, fixture.receipt],
+  ] as const) await repository.putImmutable({ ref, value })
+  const leased = leasedHead(fixture, "worker-finalization")
+  const acquired = await repository.compareAndSwapHead({
+    jobId: fixture.sourcePin.jobId,
+    expectedHeadRevision: fixture.waitingHead.headRevision,
+    expectedHeadFingerprint: fixture.waitingHead.fingerprint,
+    nextHead: leased,
+  })
+  if (acquired.status !== "committed") throw new Error(`worker seed lease failed: ${acquired.status}`)
+  return { leased, receiptRef }
+}
+
+async function seedReadyToFinalize(
+  repository: FlowDocBackendCompositionRepositoryV1,
+  fixture: ReturnType<typeof createCompositionSchedulerFixture>,
+) {
+  const { leased, receiptRef } = await seedLeasedTransition(repository, fixture)
+  const committed = await repository.compareAndSwapHead({
+    jobId: fixture.sourcePin.jobId,
+    expectedHeadRevision: leased.headRevision,
+    expectedHeadFingerprint: leased.fingerprint,
+    nextHead: fixture.readyToFinalizeHead,
+    committedRequest: {
+      requestId: fixture.receipt.transitionRequestId,
+      requestFingerprint: fixture.receipt.requestFingerprint,
+      receiptRef,
+    },
+  })
+  if (committed.status !== "committed") throw new Error(`worker seed transition failed: ${committed.status}`)
+  return { leased, receiptRef }
 }
 
 describe("composition scheduler SQLite repository candidate", () => {
@@ -207,15 +270,44 @@ describe("composition scheduler SQLite repository candidate", () => {
         manifest: fixture.manifest,
         head: fixture.waitingHead,
       }
-      await expect(createFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)).resolves.toMatchObject({
+      const unavailable = await createFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)
+      expect(unavailable).toMatchObject({
         status: "unavailable",
         availability: { commitState: "unknown", reconcileWith: "create-request" },
       })
+      if (unavailable.status !== "unavailable") throw new Error("create fault did not become unavailable")
+      const mutation = { operation: "head-create" as const, input }
+      const pending = createFlowDocBackendCompositionWorkerStorageAttemptV1({
+        mutation,
+        unavailable,
+        completedWriteAttemptCount: 1,
+        unavailableAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (pending.status === "blocked") throw new Error(pending.issues[0]?.message)
       faulted.close()
       const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
       repositories.push(reopened)
-      await expect(createFlowDocBackendCompositionHeadWithAvailabilityV1(reopened, input)).resolves.toMatchObject({
-        status: point === "before-commit" ? "created" : "idempotent-replay",
+      const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
+        repository: reopened,
+        mutation,
+        state: pending.state,
+        observedAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (point === "after-commit") expect(reconciled).toMatchObject({ status: "committed", evidence: "create-request" })
+      else {
+        expect(reconciled).toMatchObject({ status: "retry-ready", evidence: "create-request" })
+        if (reconciled.status !== "retry-ready") throw new Error("create reconciliation did not prepare retry")
+        await expect(retryFlowDocBackendCompositionWorkerStorageAttemptV1({
+          repository: reopened,
+          mutation,
+          state: reconciled.state,
+          startedAt: reconciled.state.retryNotBefore,
+        })).resolves.toMatchObject({ status: "committed" })
+      }
+      await expect(reopened.readHeadCreation(fixture.sourcePin.jobId)).resolves.toMatchObject({
+        status: "found",
+        createRequestId: input.createRequestId,
+        requestFingerprint: input.requestFingerprint,
       })
     }
   })
@@ -251,18 +343,250 @@ describe("composition scheduler SQLite repository candidate", () => {
         expectedHeadFingerprint: fixture.waitingHead.fingerprint,
         nextHead,
       }
-      await expect(compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)).resolves.toMatchObject({
+      const unavailable = await compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)
+      expect(unavailable).toMatchObject({
         status: "unavailable",
         availability: { commitState: "unknown", reconcileWith: "head-read" },
       })
+      if (unavailable.status !== "unavailable") throw new Error("CAS fault did not become unavailable")
+      const mutation = { operation: "head-compare-and-swap" as const, input }
+      const pending = createFlowDocBackendCompositionWorkerStorageAttemptV1({
+        mutation,
+        unavailable,
+        completedWriteAttemptCount: 1,
+        unavailableAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (pending.status === "blocked") throw new Error(pending.issues[0]?.message)
       faulted.close()
       const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
       repositories.push(reopened)
+      const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
+        repository: reopened,
+        mutation,
+        state: pending.state,
+        observedAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (point === "after-commit") expect(reconciled).toMatchObject({ status: "committed", evidence: "head-read" })
+      else {
+        expect(reconciled).toMatchObject({ status: "retry-ready", evidence: "head-read" })
+        if (reconciled.status !== "retry-ready") throw new Error("CAS reconciliation did not prepare retry")
+        await expect(retryFlowDocBackendCompositionWorkerStorageAttemptV1({
+          repository: reopened,
+          mutation,
+          state: reconciled.state,
+          startedAt: reconciled.state.retryNotBefore,
+        })).resolves.toMatchObject({ status: "committed" })
+      }
       await expect(reopened.readHead(fixture.sourcePin.jobId)).resolves.toMatchObject({
         status: "found",
-        head: point === "before-commit"
-          ? { headRevision: fixture.waitingHead.headRevision, fingerprint: fixture.waitingHead.fingerprint }
-          : { headRevision: nextHead.headRevision, fingerprint: nextHead.fingerprint },
+        head: { headRevision: nextHead.headRevision, fingerprint: nextHead.fingerprint },
+      })
+    }
+  })
+
+  it("recovers one committed transition outcome across before/after-commit restart", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const root = mkdtempSync(join(tmpdir(), `flowdoc-composition-worker-request-${point}-`))
+      roots.push(root)
+      const databasePath = join(root, "composition.sqlite")
+      let armed = false
+      const faulted = await createFlowDocBackendCompositionSqliteRepositoryV1({
+        databasePath,
+        faultInjector(context) {
+          if (armed && context.transactionKind === "head-cas" && context.point === point) {
+            armed = false
+            throw new Error(`injected-worker-request-${point}`)
+          }
+        },
+      })
+      repositories.push(faulted)
+      const { leased, receiptRef } = await seedLeasedTransition(faulted, fixture)
+      const mutation: FlowDocBackendCompositionWorkerHeadMutationV1 = {
+        operation: "head-compare-and-swap",
+        input: {
+          jobId: fixture.sourcePin.jobId,
+          expectedHeadRevision: leased.headRevision,
+          expectedHeadFingerprint: leased.fingerprint,
+          nextHead: fixture.readyToFinalizeHead,
+          committedRequest: {
+            requestId: fixture.receipt.transitionRequestId,
+            requestFingerprint: fixture.receipt.requestFingerprint,
+            receiptRef,
+          },
+        },
+      }
+      armed = true
+      const unavailable = await compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(
+        faulted,
+        mutation.input,
+      )
+      expect(unavailable).toMatchObject({
+        status: "unavailable",
+        availability: { reconcileWith: "committed-request" },
+      })
+      if (unavailable.status !== "unavailable") throw new Error("transition fault did not become unavailable")
+      const pending = createFlowDocBackendCompositionWorkerStorageAttemptV1({
+        mutation,
+        unavailable,
+        completedWriteAttemptCount: 1,
+        unavailableAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (pending.status === "blocked") throw new Error(pending.issues[0]?.message)
+      faulted.close()
+
+      const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
+      repositories.push(reopened)
+      if (point === "after-commit") {
+        const retained = await reopened.readCommittedRequest({
+          jobId: fixture.sourcePin.jobId,
+          requestId: fixture.receipt.transitionRequestId,
+        })
+        expect(retained).toMatchObject({ status: "found" })
+        if (retained.status !== "found") throw new Error("committed transition evidence is missing")
+        expect(retained.requestFingerprint).toBe(mutation.input.committedRequest!.requestFingerprint)
+        expect(retained.receiptRef).toEqual(mutation.input.committedRequest!.receiptRef)
+        expect(retained.head).toEqual(mutation.input.nextHead)
+      }
+      const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
+        repository: reopened,
+        mutation,
+        state: pending.state,
+        observedAt: "2026-07-13T08:01:00.000Z",
+      })
+      if (point === "after-commit") expect(reconciled).toMatchObject({
+        status: "committed",
+        evidence: "committed-request",
+      })
+      else {
+        expect(reconciled).toMatchObject({ status: "retry-ready", evidence: "committed-request" })
+        if (reconciled.status !== "retry-ready") throw new Error("transition reconciliation did not prepare retry")
+        await expect(retryFlowDocBackendCompositionWorkerStorageAttemptV1({
+          repository: reopened,
+          mutation,
+          state: reconciled.state,
+          startedAt: reconciled.state.retryNotBefore,
+        })).resolves.toMatchObject({ status: "committed" })
+      }
+      await expect(reopened.readCommittedRequest({
+        jobId: fixture.sourcePin.jobId,
+        requestId: fixture.receipt.transitionRequestId,
+      })).resolves.toMatchObject({
+        status: "found",
+        requestFingerprint: fixture.receipt.requestFingerprint,
+        receiptRef,
+        head: fixture.readyToFinalizeHead,
+      })
+    }
+  })
+
+  it("recovers one finalization outcome across before/after-commit restart", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const root = mkdtempSync(join(tmpdir(), `flowdoc-composition-worker-finalization-${point}-`))
+      roots.push(root)
+      const databasePath = join(root, "composition.sqlite")
+      let armed = false
+      const faulted = await createFlowDocBackendCompositionSqliteRepositoryV1({
+        databasePath,
+        faultInjector(context) {
+          if (armed && context.transactionKind === "head-cas" && context.point === point) {
+            armed = false
+            throw new Error(`injected-worker-finalization-${point}`)
+          }
+        },
+      })
+      repositories.push(faulted)
+      await seedReadyToFinalize(faulted, fixture)
+      const captured: { value: Parameters<FlowDocBackendCompositionRepositoryV1["compareAndSwapHead"]>[0] | null } = {
+        value: null,
+      }
+      const repository = {
+        ...faulted,
+        async compareAndSwapHeadWithAvailability(
+          input: Parameters<FlowDocBackendCompositionRepositoryV1["compareAndSwapHead"]>[0],
+        ) {
+          if (input.committedFinalization != null) {
+            captured.value = input
+            armed = true
+          }
+          return faulted.compareAndSwapHeadWithAvailability(input)
+        },
+      }
+      const finalized = await finalizeFlowDocBackendCompositionV1({
+        repository,
+        request: {
+          requestId: `worker-finalization-${point}`,
+          jobId: fixture.sourcePin.jobId,
+          expectedHeadRevision: fixture.readyToFinalizeHead.headRevision,
+          expectedHeadFingerprint: fixture.readyToFinalizeHead.fingerprint,
+        },
+        attempt: {
+          attemptId: `worker-finalization-attempt-${point}`,
+          leaseToken: `worker-finalization-lease-${point}`,
+          acquiredAt: "2026-07-13T08:02:00.000Z",
+          completedAt: "2026-07-13T08:02:01.000Z",
+          leaseExpiresAt: "2026-07-13T08:05:00.000Z",
+        },
+      })
+      expect(finalized).toMatchObject({
+        status: "unavailable",
+        availability: { reconcileWith: "committed-finalization" },
+      })
+      if (finalized.status !== "unavailable" || finalized.availability == null || captured.value == null) {
+        throw new Error(`finalization fault was not captured: ${finalized.status}`)
+      }
+      const mutation: FlowDocBackendCompositionWorkerHeadMutationV1 = {
+        operation: "head-compare-and-swap",
+        input: captured.value,
+      }
+      const unavailable = {
+        status: "unavailable" as const,
+        head: null,
+        availability: finalized.availability,
+        issues: finalized.issues,
+      }
+      const pending = createFlowDocBackendCompositionWorkerStorageAttemptV1({
+        mutation,
+        unavailable,
+        completedWriteAttemptCount: 1,
+        unavailableAt: "2026-07-13T08:02:01.000Z",
+      })
+      if (pending.status === "blocked") throw new Error(pending.issues[0]?.message)
+      faulted.close()
+
+      const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
+      repositories.push(reopened)
+      const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
+        repository: reopened,
+        mutation,
+        state: pending.state,
+        observedAt: "2026-07-13T08:02:01.000Z",
+      })
+      if (point === "after-commit") expect(reconciled).toMatchObject({
+        status: "committed",
+        evidence: "committed-finalization",
+      })
+      else {
+        expect(reconciled).toMatchObject({ status: "retry-ready", evidence: "committed-finalization" })
+        if (reconciled.status !== "retry-ready") throw new Error("finalization reconciliation did not prepare retry")
+        await expect(retryFlowDocBackendCompositionWorkerStorageAttemptV1({
+          repository: reopened,
+          mutation,
+          state: reconciled.state,
+          startedAt: reconciled.state.retryNotBefore,
+        })).resolves.toMatchObject({ status: "committed" })
+      }
+      const finalization = mutation.input.committedFinalization
+      if (finalization == null) throw new Error("captured finalization evidence is missing")
+      await expect(reopened.readCommittedFinalization({
+        jobId: fixture.sourcePin.jobId,
+        requestId: finalization.requestId,
+      })).resolves.toMatchObject({
+        status: "found",
+        requestFingerprint: finalization.requestFingerprint,
+        pagePlanRef: finalization.pagePlanRef,
+        headingPageMapRef: finalization.headingPageMapRef,
       })
     }
   })

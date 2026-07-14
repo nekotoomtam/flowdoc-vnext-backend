@@ -27,6 +27,7 @@ export const FLOWDOC_BACKEND_COMPOSITION_REPOSITORY_CONFORMANCE_V1_SOURCE =
 
 export const FLOWDOC_BACKEND_COMPOSITION_REPOSITORY_CONFORMANCE_SCENARIOS_V1 = [
   "atomic-head-create",
+  "head-creation-identity-read",
   "atomic-transition-request-commit",
   "atomic-finalization-request-commit",
   "immutable-record-id-uniqueness",

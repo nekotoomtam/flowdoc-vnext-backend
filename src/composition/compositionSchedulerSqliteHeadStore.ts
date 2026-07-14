@@ -15,6 +15,7 @@ import type {
   FlowDocBackendCompositionCommittedFinalizationReadResultV1,
   FlowDocBackendCompositionCommittedRequestReadResultV1,
   FlowDocBackendCompositionHeadCompareAndSwapResultV1,
+  FlowDocBackendCompositionHeadCreationReadResultV1,
   FlowDocBackendCompositionHeadCreateResultV1,
   FlowDocBackendCompositionHeadReadResultV1,
   FlowDocBackendCompositionRepositoryContextV1,
@@ -257,6 +258,58 @@ export function readFlowDocBackendCompositionSqliteHeadV1(
         head: cloneCompositionJson(parsed.owner.head),
         issues: [],
       }
+}
+
+export function readFlowDocBackendCompositionSqliteHeadCreationV1(
+  database: DatabaseSync,
+  jobId: string,
+): FlowDocBackendCompositionHeadCreationReadResultV1 {
+  if (typeof jobId !== "string" || jobId.length === 0 || jobId.length > 512) return {
+    status: "invalid",
+    createRequestId: null,
+    requestFingerprint: null,
+    head: null,
+    issues: [compositionIssue(
+      "composition-head-creation-read-invalid",
+      "jobId",
+      "job id is required to read head creation identity",
+    )],
+  }
+  const row = readJobRow(database, jobId)
+  if (row == null) return {
+    status: "not-found",
+    createRequestId: null,
+    requestFingerprint: null,
+    head: null,
+    issues: [],
+  }
+  const parsed = parseJobRow(row)
+  if (
+    parsed.owner == null
+    || row.create_request_id.length === 0
+    || row.create_request_id.length > 512
+    || !/^sha256:[a-f0-9]{64}$/u.test(row.create_request_fingerprint)
+  ) return {
+    status: "invalid",
+    createRequestId: null,
+    requestFingerprint: null,
+    head: null,
+    issues: [
+      ...parsed.issues,
+      compositionIssue(
+        "composition-head-creation-row-invalid",
+        "createRequestId",
+        "head creation identity must retain a bounded request id and exact fingerprint",
+      ),
+    ],
+  }
+  return {
+    status: "found",
+    createRequestId: row.create_request_id,
+    requestFingerprint: row.create_request_fingerprint,
+    head: cloneCompositionJson(parsed.owner.head),
+    issues: [],
+  }
 }
 
 export function readFlowDocBackendCompositionSqliteCommittedRequestV1(

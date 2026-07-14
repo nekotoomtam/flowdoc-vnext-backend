@@ -92,6 +92,10 @@ Current slice:
   bounded reconcile-before-retry decisions, and scheduler-wide unavailable
   outcomes while preserving repository V1 behavior in
   `docs/DURABLE_COMPOSITION_SCHEDULER_TRANSIENT_AVAILABILITY.md`
+- Phase 397 adds a fingerprinted worker storage-attempt state machine, exact
+  creation/head/request/finalization reconciliation, separate bounded write and
+  read-failure budgets, lease-window safety, and four-lane SQLite restart
+  evidence in `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_RECONCILIATION.md`
 
 Not yet included:
 

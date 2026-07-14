@@ -43,9 +43,33 @@ export type FlowDocBackendCompositionHeadReadResultV1 =
       head: FlowDocBackendCompositionJobHeadV1
       issues: []
     }
+
   | {
       status: "not-found" | "invalid"
       context: null
+      head: null
+      issues: FlowDocBackendCompositionContractIssue[]
+    }
+
+export type FlowDocBackendCompositionHeadCreationReadResultV1 =
+  | {
+      status: "found"
+      createRequestId: string
+      requestFingerprint: string
+      head: FlowDocBackendCompositionJobHeadV1
+      issues: []
+    }
+  | {
+      status: "not-found"
+      createRequestId: null
+      requestFingerprint: null
+      head: null
+      issues: []
+    }
+  | {
+      status: "invalid"
+      createRequestId: null
+      requestFingerprint: null
       head: null
       issues: FlowDocBackendCompositionContractIssue[]
     }
@@ -148,6 +172,7 @@ export interface FlowDocBackendCompositionRepositoryV1 {
     head: unknown
   }): Promise<FlowDocBackendCompositionHeadCreateResultV1>
   readHead(jobId: string): Promise<FlowDocBackendCompositionHeadReadResultV1>
+  readHeadCreation(jobId: string): Promise<FlowDocBackendCompositionHeadCreationReadResultV1>
   readCommittedRequest(input: {
     jobId: string
     requestId: string
@@ -406,6 +431,47 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
       return {
         status: "found",
         context: cloneCompositionJson(stored.context),
+        head: cloneCompositionJson(parsed.jobHead),
+        issues: [],
+      }
+    },
+
+    async readHeadCreation(jobId) {
+      if (typeof jobId !== "string" || jobId.length === 0 || jobId.length > 512) return {
+        status: "invalid",
+        createRequestId: null,
+        requestFingerprint: null,
+        head: null,
+        issues: [compositionIssue(
+          "composition-head-creation-read-invalid",
+          "jobId",
+          "job id is required to read head creation identity",
+        )],
+      }
+      const stored = heads.get(jobId)
+      if (stored == null) return {
+        status: "not-found",
+        createRequestId: null,
+        requestFingerprint: null,
+        head: null,
+        issues: [],
+      }
+      const parsed = parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
+        value: stored.head,
+        sourcePin: stored.context.sourcePin,
+        manifest: stored.context.manifest,
+      })
+      if (parsed.status === "blocked") return {
+        status: "invalid",
+        createRequestId: null,
+        requestFingerprint: null,
+        head: null,
+        issues: parsed.issues,
+      }
+      return {
+        status: "found",
+        createRequestId: stored.createRequestId,
+        requestFingerprint: stored.createRequestFingerprint,
         head: cloneCompositionJson(parsed.jobHead),
         issues: [],
       }

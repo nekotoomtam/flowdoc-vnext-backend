@@ -79,6 +79,12 @@ describe("durable composition scheduler repository", () => {
       head: fixture.waitingHead,
     }
     await expect(repository.createHead(createInput)).resolves.toMatchObject({ status: "created", head: { headRevision: 0 } })
+    await expect(repository.readHeadCreation(fixture.sourcePin.jobId)).resolves.toMatchObject({
+      status: "found",
+      createRequestId: createInput.createRequestId,
+      requestFingerprint: createInput.requestFingerprint,
+      head: fixture.waitingHead,
+    })
     await expect(repository.createHead(createInput)).resolves.toMatchObject({ status: "idempotent-replay" })
     await expect(repository.createHead({ ...createInput, requestFingerprint: fp("different-create") })).resolves.toMatchObject({
       status: "conflict",
