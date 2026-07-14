@@ -141,6 +141,12 @@ describe("composition scheduler worker journal", () => {
       claimToken: "claim-competing",
       workerId: "worker-2",
     })).resolves.toMatchObject({ status: "busy" })
+    await expect(journal.startWorkerAttempt({
+      attemptId: facts.create.attemptId,
+      expectedJournalRevision: 1,
+      claimToken: "claim-1",
+      startedAt: "2026-07-13T08:02:00.050Z",
+    })).resolves.toMatchObject({ status: "started", entry: { journalRevision: 2 } })
 
     const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
       repository: createInMemoryFlowDocBackendCompositionRepositoryV1(),
@@ -151,14 +157,14 @@ describe("composition scheduler worker journal", () => {
     if (reconciled.status !== "retry-ready") throw new Error("journal fixture did not reach retry-ready")
     const release = {
       attemptId: facts.create.attemptId,
-      expectedJournalRevision: 1,
+      expectedJournalRevision: 2,
       claimToken: "claim-1",
       releasedAt: "2026-07-13T08:02:00.100Z",
       nextState: reconciled.state,
     }
     await expect(journal.releaseWorkerAttempt(release)).resolves.toMatchObject({
       status: "released",
-      entry: { journalRevision: 2, status: "pending" },
+      entry: { journalRevision: 3, status: "pending" },
     })
     await expect(journal.releaseWorkerAttempt(release)).resolves.toMatchObject({ status: "idempotent-replay" })
     await expect(journal.releaseWorkerAttempt({
@@ -168,7 +174,7 @@ describe("composition scheduler worker journal", () => {
 
     const retryClaim = {
       attemptId: facts.create.attemptId,
-      expectedJournalRevision: 2,
+      expectedJournalRevision: 3,
       claimToken: "claim-retry-1",
       workerId: "worker-1",
       claimedAt: reconciled.state.retryNotBefore,
@@ -180,9 +186,15 @@ describe("composition scheduler worker journal", () => {
       expiresAt: "2026-07-13T08:03:00.249Z",
     })).resolves.toMatchObject({ status: "deferred" })
     await expect(journal.claimWorkerAttempt(retryClaim)).resolves.toMatchObject({ status: "claimed" })
+    await expect(journal.startWorkerAttempt({
+      attemptId: facts.create.attemptId,
+      expectedJournalRevision: 4,
+      claimToken: retryClaim.claimToken,
+      startedAt: retryClaim.claimedAt,
+    })).resolves.toMatchObject({ status: "started", entry: { journalRevision: 5 } })
     const reclaim = {
       ...retryClaim,
-      expectedJournalRevision: 3,
+      expectedJournalRevision: 5,
       claimToken: "claim-retry-2",
       workerId: "worker-2",
       claimedAt: retryClaim.expiresAt,
@@ -190,11 +202,17 @@ describe("composition scheduler worker journal", () => {
     }
     await expect(journal.claimWorkerAttempt(reclaim)).resolves.toMatchObject({
       status: "reclaimed",
-      entry: { journalRevision: 4 },
+      entry: { journalRevision: 6 },
     })
+    await expect(journal.startWorkerAttempt({
+      attemptId: facts.create.attemptId,
+      expectedJournalRevision: 6,
+      claimToken: reclaim.claimToken,
+      startedAt: reclaim.claimedAt,
+    })).resolves.toMatchObject({ status: "started", entry: { journalRevision: 7 } })
     await expect(journal.completeWorkerAttempt({
       attemptId: facts.create.attemptId,
-      expectedJournalRevision: 3,
+      expectedJournalRevision: 5,
       claimToken: retryClaim.claimToken,
       completedAt: retryClaim.expiresAt,
       terminalStatus: "failed",
@@ -203,7 +221,7 @@ describe("composition scheduler worker journal", () => {
 
     const completion = {
       attemptId: facts.create.attemptId,
-      expectedJournalRevision: 4,
+      expectedJournalRevision: 7,
       claimToken: reclaim.claimToken,
       completedAt: "2026-07-13T08:03:00.300Z",
       terminalStatus: "exhausted" as const,
@@ -211,7 +229,7 @@ describe("composition scheduler worker journal", () => {
     }
     await expect(journal.completeWorkerAttempt(completion)).resolves.toMatchObject({
       status: "completed",
-      entry: { journalRevision: 5, status: "completed" },
+      entry: { journalRevision: 8, status: "completed" },
     })
     await expect(journal.completeWorkerAttempt(completion)).resolves.toMatchObject({ status: "idempotent-replay" })
     await expect(journal.completeWorkerAttempt({
@@ -267,6 +285,12 @@ describe("composition scheduler worker journal", () => {
         claimedAt: unavailableAt,
         expiresAt: "2026-07-13T08:03:00.000Z",
       })
+      await initial.repository.startWorkerAttempt({
+        attemptId: facts.create.attemptId,
+        expectedJournalRevision: 1,
+        claimToken: "fault-claim",
+        startedAt: "2026-07-13T08:02:00.050Z",
+      })
       const reconciled = await reconcileFlowDocBackendCompositionWorkerStorageAttemptV1({
         repository: createInMemoryFlowDocBackendCompositionRepositoryV1(),
         mutation: facts.mutation,
@@ -285,7 +309,7 @@ describe("composition scheduler worker journal", () => {
       })
       const release = {
         attemptId: facts.create.attemptId,
-        expectedJournalRevision: 1,
+        expectedJournalRevision: 2,
         claimToken: "fault-claim",
         releasedAt: "2026-07-13T08:02:00.100Z",
         nextState: reconciled.state,
@@ -297,8 +321,8 @@ describe("composition scheduler worker journal", () => {
       await expect(reopened.repository.readWorkerAttempt(facts.create.attemptId)).resolves.toMatchObject({
         status: "found",
         entry: point === "before-commit"
-          ? { journalRevision: 1, status: "claimed" }
-          : { journalRevision: 2, status: "pending" },
+          ? { journalRevision: 2, status: "claimed" }
+          : { journalRevision: 3, status: "pending" },
       })
       await expect(reopened.repository.releaseWorkerAttempt(release)).resolves.toMatchObject({
         status: point === "before-commit" ? "released" : "idempotent-replay",
@@ -320,7 +344,15 @@ describe("composition scheduler worker journal", () => {
           claimedAt: unavailableAt,
           expiresAt: "2026-07-13T08:03:00.000Z",
         }
-        if (operation === "complete") await initial.repository.claimWorkerAttempt(claim)
+        if (operation === "complete") {
+          await initial.repository.claimWorkerAttempt(claim)
+          await initial.repository.startWorkerAttempt({
+            attemptId: facts.create.attemptId,
+            expectedJournalRevision: 1,
+            claimToken: claim.claimToken,
+            startedAt: unavailableAt,
+          })
+        }
         initial.repository.close()
 
         let injected = false
@@ -336,7 +368,7 @@ describe("composition scheduler worker journal", () => {
         })
         const completion = {
           attemptId: facts.create.attemptId,
-          expectedJournalRevision: 1,
+          expectedJournalRevision: 2,
           claimToken: claim.claimToken,
           completedAt: "2026-07-13T08:02:00.100Z",
           terminalStatus: "failed" as const,
@@ -356,8 +388,8 @@ describe("composition scheduler worker journal", () => {
               ? { journalRevision: 0, status: "pending" }
               : { journalRevision: 1, status: "claimed" }
             : point === "before-commit"
-              ? { journalRevision: 1, status: "claimed" }
-              : { journalRevision: 2, status: "completed" },
+              ? { journalRevision: 2, status: "claimed" }
+              : { journalRevision: 3, status: "completed" },
         })
         if (operation === "claim") {
           await expect(reopened.repository.claimWorkerAttempt(claim)).resolves.toMatchObject({
@@ -369,6 +401,50 @@ describe("composition scheduler worker journal", () => {
           })
         }
       }
+    }
+  })
+
+  it("keeps execution start entirely before or after the SQLite commit crash boundary", async () => {
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const facts = workerFacts()
+      const initial = await open()
+      await initial.repository.createWorkerAttempt(facts.create)
+      await initial.repository.claimWorkerAttempt({
+        attemptId: facts.create.attemptId,
+        expectedJournalRevision: 0,
+        claimToken: "start-crash-claim",
+        workerId: "start-crash-worker",
+        claimedAt: unavailableAt,
+        expiresAt: "2026-07-13T08:03:00.000Z",
+      })
+      initial.repository.close()
+
+      let injected = false
+      const faulted = await open(initial.databasePath, (context) => {
+        if (!injected && context.transactionKind === "worker-journal-start" && context.point === point) {
+          injected = true
+          throw new Error(`injected-start-${point}`)
+        }
+      })
+      const start = {
+        attemptId: facts.create.attemptId,
+        expectedJournalRevision: 1,
+        claimToken: "start-crash-claim",
+        startedAt: "2026-07-13T08:02:00.010Z",
+      }
+      await expect(faulted.repository.startWorkerAttempt(start)).rejects.toThrow(`injected-start-${point}`)
+      faulted.repository.close()
+
+      const reopened = await open(initial.databasePath)
+      await expect(reopened.repository.readWorkerAttempt(facts.create.attemptId)).resolves.toMatchObject({
+        status: "found",
+        entry: point === "before-commit"
+          ? { journalRevision: 1, status: "claimed", execution: null }
+          : { journalRevision: 2, status: "claimed", execution: { phase: "reconcile" } },
+      })
+      await expect(reopened.repository.startWorkerAttempt(start)).resolves.toMatchObject({
+        status: point === "before-commit" ? "started" : "idempotent-replay",
+      })
     }
   })
 })

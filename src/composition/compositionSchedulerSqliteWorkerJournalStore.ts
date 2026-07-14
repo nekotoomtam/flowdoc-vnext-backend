@@ -7,6 +7,7 @@ import {
   isExactFlowDocBackendCompositionWorkerJournalCreationReplayV1,
   parseFlowDocBackendCompositionWorkerJournalEntryV1,
   releaseFlowDocBackendCompositionWorkerJournalEntryV1,
+  startFlowDocBackendCompositionWorkerJournalEntryV1,
   type FlowDocBackendCompositionWorkerJournalEntryV1,
 } from "./compositionSchedulerWorkerJournalContract.js"
 import type {
@@ -16,6 +17,7 @@ import type {
   FlowDocBackendCompositionWorkerJournalCreateResultV1,
   FlowDocBackendCompositionWorkerJournalReadResultV1,
   FlowDocBackendCompositionWorkerJournalReleaseResultV1,
+  FlowDocBackendCompositionWorkerJournalStartResultV1,
   FlowDocBackendCompositionWorkerJournalRepositoryV1,
 } from "./compositionSchedulerWorkerJournalRepository.js"
 import {
@@ -211,6 +213,23 @@ export function releaseFlowDocBackendCompositionSqliteWorkerAttemptV1(
     input.attemptId,
     (entry) => releaseFlowDocBackendCompositionWorkerJournalEntryV1({ entry, ...input }),
     (result) => result.status === "released" ? result.entry : null,
+    { status: "not-found", entry: null, issues: [] },
+    (issues) => ({ status: "storage-invalid", entry: null, issues }),
+  )
+}
+
+export function startFlowDocBackendCompositionSqliteWorkerAttemptV1(
+  database: DatabaseSync,
+  options: FlowDocBackendCompositionSqliteCandidateOptionsV1,
+  input: Parameters<FlowDocBackendCompositionWorkerJournalRepositoryV1["startWorkerAttempt"]>[0],
+): FlowDocBackendCompositionWorkerJournalStartResultV1 {
+  return transactionalTransition<FlowDocBackendCompositionWorkerJournalStartResultV1>(
+    database,
+    options,
+    "worker-journal-start",
+    input.attemptId,
+    (entry) => startFlowDocBackendCompositionWorkerJournalEntryV1({ entry, ...input }),
+    (result) => result.status === "started" ? result.entry : null,
     { status: "not-found", entry: null, issues: [] },
     (issues) => ({ status: "storage-invalid", entry: null, issues }),
   )

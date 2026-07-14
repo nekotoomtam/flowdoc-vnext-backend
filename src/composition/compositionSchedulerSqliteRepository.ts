@@ -28,6 +28,7 @@ import {
   createFlowDocBackendCompositionSqliteWorkerAttemptV1,
   readFlowDocBackendCompositionSqliteWorkerAttemptV1,
   releaseFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  startFlowDocBackendCompositionSqliteWorkerAttemptV1,
 } from "./compositionSchedulerSqliteWorkerJournalStore.js"
 import {
   FLOWDOC_BACKEND_COMPOSITION_SQLITE_CANDIDATE_SOURCE,
@@ -172,6 +173,9 @@ function createRepository(
     },
     async claimWorkerAttempt(input) {
       return claimFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
+    },
+    async startWorkerAttempt(input) {
+      return startFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
     },
     async releaseWorkerAttempt(input) {
       return releaseFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)

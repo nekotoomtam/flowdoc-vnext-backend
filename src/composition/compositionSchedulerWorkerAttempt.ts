@@ -11,6 +11,7 @@ import {
 } from "./compositionSchedulerHeadPersistence.js"
 import type { FlowDocBackendCompositionJobHeadV1 } from "./compositionSchedulerJobHead.js"
 import {
+  createFlowDocBackendCompositionHeadUnavailableResultV1,
   decideFlowDocBackendCompositionTransientRetryV1,
   FLOWDOC_BACKEND_COMPOSITION_DEFAULT_TRANSIENT_RETRY_AFTER_MS,
   FLOWDOC_BACKEND_COMPOSITION_MAX_TRANSIENT_STORAGE_ATTEMPTS,
@@ -408,6 +409,34 @@ export function createFlowDocBackendCompositionWorkerStorageAttemptV1(input: {
     }),
     issues: [],
   }
+}
+
+export function recoverFlowDocBackendCompositionInterruptedWorkerRetryV1(input: {
+  mutation: FlowDocBackendCompositionWorkerHeadMutationV1
+  state: FlowDocBackendCompositionWorkerRetryReadyStateV1
+  executionStartedAt: string
+}): FlowDocBackendCompositionWorkerAttemptStateResultV1 {
+  const inspection = inspectFlowDocBackendCompositionWorkerStorageAttemptV1({
+    mutation: input.mutation,
+    state: input.state,
+  })
+  if (
+    inspection.status === "blocked"
+    || input.state.phase !== "retry-ready"
+    || !exactIso(input.executionStartedAt)
+    || Date.parse(input.executionStartedAt) < Date.parse(input.state.retryNotBefore)
+  ) return { status: "blocked", state: null, issues: invalidStateIssue() }
+  return createFlowDocBackendCompositionWorkerStorageAttemptV1({
+    mutation: input.mutation,
+    unavailable: createFlowDocBackendCompositionHeadUnavailableResultV1({
+      operation: input.mutation.operation,
+      reconcileWith: input.state.availability.reconcileWith,
+      source: "adapter-exception",
+      message: "previous retry execution ended without a retained journal outcome",
+    }),
+    completedWriteAttemptCount: input.state.nextWriteAttemptNumber,
+    unavailableAt: input.executionStartedAt,
+  })
 }
 
 function retryOrExhausted(

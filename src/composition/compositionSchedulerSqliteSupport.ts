@@ -11,6 +11,7 @@ export type FlowDocBackendCompositionSqliteTransactionKindV1 =
   | "cleanup"
   | "worker-journal-create"
   | "worker-journal-claim"
+  | "worker-journal-start"
   | "worker-journal-release"
   | "worker-journal-complete"
 

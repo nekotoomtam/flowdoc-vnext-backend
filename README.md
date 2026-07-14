@@ -100,6 +100,10 @@ Current slice:
   retention, atomic expiring claims, duplicate-delivery replay, expiry reclaim,
   terminal completion, and SQLite restart/crash evidence in
   `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_JOURNAL.md`
+- Phase 399 adds a one-step durable worker runner with atomic execution-start
+  evidence, exact reconcile/retry release and terminal mapping, duplicate-
+  delivery exclusion, interrupted-retry reconciliation, and SQLite restart
+  evidence in `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_RUNNER.md`
 
 Not yet included:
 

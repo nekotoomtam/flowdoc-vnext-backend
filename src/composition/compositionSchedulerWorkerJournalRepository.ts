@@ -9,10 +9,12 @@ import {
   createFlowDocBackendCompositionWorkerJournalEntryV1,
   isExactFlowDocBackendCompositionWorkerJournalCreationReplayV1,
   releaseFlowDocBackendCompositionWorkerJournalEntryV1,
+  startFlowDocBackendCompositionWorkerJournalEntryV1,
   type FlowDocBackendCompositionWorkerJournalClaimTransitionResultV1,
   type FlowDocBackendCompositionWorkerJournalCompleteTransitionResultV1,
   type FlowDocBackendCompositionWorkerJournalEntryV1,
   type FlowDocBackendCompositionWorkerJournalReleaseTransitionResultV1,
+  type FlowDocBackendCompositionWorkerJournalStartTransitionResultV1,
   type FlowDocBackendCompositionWorkerJournalTerminalStatusV1,
 } from "./compositionSchedulerWorkerJournalContract.js"
 import type {
@@ -51,6 +53,11 @@ export type FlowDocBackendCompositionWorkerJournalReleaseResultV1 =
   | { status: "not-found"; entry: null; issues: [] }
   | { status: "storage-invalid"; entry: null; issues: FlowDocBackendCompositionContractIssue[] }
 
+export type FlowDocBackendCompositionWorkerJournalStartResultV1 =
+  | FlowDocBackendCompositionWorkerJournalStartTransitionResultV1
+  | { status: "not-found"; entry: null; issues: [] }
+  | { status: "storage-invalid"; entry: null; issues: FlowDocBackendCompositionContractIssue[] }
+
 export type FlowDocBackendCompositionWorkerJournalCompleteResultV1 =
   | FlowDocBackendCompositionWorkerJournalCompleteTransitionResultV1
   | { status: "not-found"; entry: null; issues: [] }
@@ -70,6 +77,12 @@ export interface FlowDocBackendCompositionWorkerJournalRepositoryV1 {
     claimedAt: string
     expiresAt: string
   }): Promise<FlowDocBackendCompositionWorkerJournalClaimResultV1>
+  startWorkerAttempt(input: {
+    attemptId: string
+    expectedJournalRevision: number
+    claimToken: string
+    startedAt: string
+  }): Promise<FlowDocBackendCompositionWorkerJournalStartResultV1>
   releaseWorkerAttempt(input: {
     attemptId: string
     expectedJournalRevision: number
@@ -141,6 +154,14 @@ FlowDocBackendCompositionWorkerJournalRepositoryV1 {
       if (entry == null) return { status: "not-found", entry: null, issues: [] }
       const result = claimFlowDocBackendCompositionWorkerJournalEntryV1({ entry, ...input })
       if (result.status === "claimed" || result.status === "reclaimed") store(result.entry)
+      return cloneCompositionJson(result)
+    },
+
+    async startWorkerAttempt(input) {
+      const entry = read(input.attemptId)
+      if (entry == null) return { status: "not-found", entry: null, issues: [] }
+      const result = startFlowDocBackendCompositionWorkerJournalEntryV1({ entry, ...input })
+      if (result.status === "started") store(result.entry)
       return cloneCompositionJson(result)
     },
 

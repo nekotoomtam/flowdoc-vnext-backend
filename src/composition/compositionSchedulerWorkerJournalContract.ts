@@ -23,6 +23,14 @@ export interface FlowDocBackendCompositionWorkerJournalClaimV1 {
   expiresAt: string
 }
 
+export interface FlowDocBackendCompositionWorkerJournalExecutionV1 {
+  claimToken: string
+  workerId: string
+  phase: FlowDocBackendCompositionWorkerStorageAttemptStateV1["phase"]
+  startedFromJournalRevision: number
+  startedAt: string
+}
+
 export type FlowDocBackendCompositionWorkerJournalTerminalStatusV1 =
   | "committed"
   | "superseded"
@@ -62,6 +70,7 @@ export interface FlowDocBackendCompositionWorkerJournalEntryV1 {
   journalRevision: number
   status: "pending" | "claimed" | "completed"
   claim: FlowDocBackendCompositionWorkerJournalClaimV1 | null
+  execution: FlowDocBackendCompositionWorkerJournalExecutionV1 | null
   lastRelease: FlowDocBackendCompositionWorkerJournalReleaseReceiptV1 | null
   terminal: FlowDocBackendCompositionWorkerJournalTerminalV1 | null
   createdAt: string
@@ -90,6 +99,18 @@ export type FlowDocBackendCompositionWorkerJournalClaimTransitionResultV1 =
 export type FlowDocBackendCompositionWorkerJournalReleaseTransitionResultV1 =
   | {
       status: "released" | "idempotent-replay"
+      entry: FlowDocBackendCompositionWorkerJournalEntryV1
+      issues: []
+    }
+  | {
+      status: "stale" | "terminal" | "invalid"
+      entry: FlowDocBackendCompositionWorkerJournalEntryV1
+      issues: FlowDocBackendCompositionContractIssue[]
+    }
+
+export type FlowDocBackendCompositionWorkerJournalStartTransitionResultV1 =
+  | {
+      status: "started" | "idempotent-replay"
       entry: FlowDocBackendCompositionWorkerJournalEntryV1
       issues: []
     }
@@ -178,6 +199,28 @@ function parseTerminal(value: unknown): FlowDocBackendCompositionWorkerJournalTe
   }
 }
 
+function parseExecution(value: unknown): FlowDocBackendCompositionWorkerJournalExecutionV1 | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return null
+  const execution = value as Record<string, unknown>
+  if (
+    Object.keys(execution).sort().join("|")
+      !== "claimToken|phase|startedAt|startedFromJournalRevision|workerId"
+    || !validId(execution.claimToken)
+    || !validId(execution.workerId)
+    || !["reconcile", "retry-ready"].includes(String(execution.phase))
+    || !Number.isInteger(execution.startedFromJournalRevision)
+    || (execution.startedFromJournalRevision as number) < 0
+    || !exactIso(execution.startedAt)
+  ) return null
+  return {
+    claimToken: execution.claimToken,
+    workerId: execution.workerId,
+    phase: execution.phase as FlowDocBackendCompositionWorkerStorageAttemptStateV1["phase"],
+    startedFromJournalRevision: execution.startedFromJournalRevision as number,
+    startedAt: execution.startedAt,
+  }
+}
+
 function parseReleaseReceipt(value: unknown): FlowDocBackendCompositionWorkerJournalReleaseReceiptV1 | null {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return null
   const receipt = value as Record<string, unknown>
@@ -212,6 +255,7 @@ function validateEntryFacts(facts: EntryFacts): FlowDocBackendCompositionContrac
     return issue("journal mutation and state must be valid worker storage-attempt values", "state")
   }
   const claim = parseClaim(facts.claim)
+  const execution = parseExecution(facts.execution)
   const lastRelease = parseReleaseReceipt(facts.lastRelease)
   const terminal = parseTerminal(facts.terminal)
   if (
@@ -232,24 +276,46 @@ function validateEntryFacts(facts: EntryFacts): FlowDocBackendCompositionContrac
     || !exactIso(facts.updatedAt)
     || Date.parse(facts.updatedAt) < Date.parse(facts.createdAt)
   ) return issue("journal identity, state binding, revision, status, and times must be valid")
-  if (facts.status === "pending" && (facts.claim != null || facts.terminal != null)) {
-    return issue("pending journal entry cannot retain a claim or terminal outcome", "status")
+  if (facts.status === "pending" && (facts.claim != null || facts.execution != null || facts.terminal != null)) {
+    return issue("pending journal entry cannot retain a claim, execution, or terminal outcome", "status")
   }
   if (facts.status === "pending" && facts.lastRelease != null && lastRelease == null) {
     return issue("pending journal release receipt must be valid", "lastRelease")
   }
-  if (facts.status === "claimed" && (claim == null || facts.lastRelease != null || facts.terminal != null)) {
+  if (
+    facts.status === "claimed"
+    && (
+      claim == null
+      || (facts.execution != null && execution == null)
+      || facts.lastRelease != null
+      || facts.terminal != null
+    )
+  ) {
     return issue("claimed journal entry requires one valid claim and no terminal outcome", "claim")
   }
-  if (facts.status === "completed" && (facts.claim != null || facts.lastRelease != null || terminal == null)) {
+  if (
+    facts.status === "completed"
+    && (facts.claim != null || facts.execution != null || facts.lastRelease != null || terminal == null)
+  ) {
     return issue("completed journal entry requires one terminal outcome and no active claim", "terminal")
   }
   if (claim != null && Date.parse(claim.claimedAt) < Date.parse(facts.createdAt)) {
     return issue("claim cannot precede journal creation", "claim.claimedAt")
   }
   if (claim != null && claim.claimedAt !== facts.updatedAt) {
-    return issue("active claim time must match the journal update time", "claim.claimedAt")
+    if (execution == null || execution.startedAt !== facts.updatedAt) {
+      return issue("claim or execution time must match the journal update time", "updatedAt")
+    }
   }
+  if (execution != null && (
+    claim == null
+    || execution.claimToken !== claim.claimToken
+    || execution.workerId !== claim.workerId
+    || execution.phase !== facts.state.phase
+    || execution.startedFromJournalRevision + 1 !== facts.journalRevision
+    || Date.parse(execution.startedAt) < Date.parse(claim.claimedAt)
+    || Date.parse(execution.startedAt) >= Date.parse(claim.expiresAt)
+  )) return issue("execution must own the exact live claim, phase, revision, and time", "execution")
   if (terminal != null && Date.parse(terminal.completedAt) < Date.parse(facts.createdAt)) {
     return issue("terminal completion cannot precede journal creation", "terminal.completedAt")
   }
@@ -307,6 +373,7 @@ export function createFlowDocBackendCompositionWorkerJournalEntryV1(input: {
     journalRevision: 0,
     status: "pending",
     claim: null,
+    execution: null,
     lastRelease: null,
     terminal: null,
     createdAt: input.createdAt,
@@ -333,6 +400,7 @@ export function parseFlowDocBackendCompositionWorkerJournalEntryV1(
     "journalRevision",
     "status",
     "claim",
+    "execution",
     "lastRelease",
     "terminal",
     "createdAt",
@@ -444,12 +512,70 @@ export function claimFlowDocBackendCompositionWorkerJournalEntryV1(input: {
     journalRevision: current.journalRevision + 1,
     status: "claimed",
     claim: requested,
+    execution: null,
     lastRelease: null,
     terminal: null,
     updatedAt: input.claimedAt,
   })
   return next.status === "ready"
     ? { status: reclaimed ? "reclaimed" : "claimed", entry: next.entry, issues: [] }
+    : { status: "invalid", entry: current, issues: next.issues }
+}
+
+export function startFlowDocBackendCompositionWorkerJournalEntryV1(input: {
+  entry: FlowDocBackendCompositionWorkerJournalEntryV1
+  expectedJournalRevision: number
+  claimToken: string
+  startedAt: string
+}): FlowDocBackendCompositionWorkerJournalStartTransitionResultV1 {
+  const current = cloneCompositionJson(input.entry)
+  if (
+    !Number.isInteger(input.expectedJournalRevision)
+    || input.expectedJournalRevision < 0
+    || !validId(input.claimToken)
+    || !exactIso(input.startedAt)
+  ) return {
+    status: "invalid",
+    entry: current,
+    issues: issue("execution start identity, revision, and time must be valid", "execution"),
+  }
+  if (
+    current.status === "claimed"
+    && current.execution?.claimToken === input.claimToken
+    && current.execution.startedFromJournalRevision === input.expectedJournalRevision
+    && current.execution.startedAt === input.startedAt
+  ) return { status: "idempotent-replay", entry: current, issues: [] }
+  if (current.status === "completed") return {
+    status: "terminal",
+    entry: current,
+    issues: issue("completed journal entry cannot start execution", "status"),
+  }
+  if (
+    current.status !== "claimed"
+    || current.claim == null
+    || current.execution != null
+    || current.journalRevision !== input.expectedJournalRevision
+    || current.claim.claimToken !== input.claimToken
+    || Date.parse(input.startedAt) < Date.parse(current.claim.claimedAt)
+    || Date.parse(input.startedAt) >= Date.parse(current.claim.expiresAt)
+  ) return {
+    status: "stale",
+    entry: current,
+    issues: issue("execution start requires the exact unstarted active claim", "claim"),
+  }
+  const next = nextEntry(current, {
+    journalRevision: current.journalRevision + 1,
+    execution: {
+      claimToken: current.claim.claimToken,
+      workerId: current.claim.workerId,
+      phase: current.state.phase,
+      startedFromJournalRevision: current.journalRevision,
+      startedAt: input.startedAt,
+    },
+    updatedAt: input.startedAt,
+  })
+  return next.status === "ready"
+    ? { status: "started", entry: next.entry, issues: [] }
     : { status: "invalid", entry: current, issues: next.issues }
 }
 
@@ -531,9 +657,13 @@ export function releaseFlowDocBackendCompositionWorkerJournalEntryV1(input: {
   if (
     current.status !== "claimed"
     || current.claim == null
+    || current.execution == null
+    || current.execution.claimToken !== input.claimToken
+    || current.execution.phase !== current.state.phase
     || current.journalRevision !== input.expectedJournalRevision
     || current.claim.claimToken !== input.claimToken
     || Date.parse(input.releasedAt) < Date.parse(current.claim.claimedAt)
+    || Date.parse(input.releasedAt) < Date.parse(current.execution.startedAt)
     || Date.parse(input.releasedAt) >= Date.parse(current.claim.expiresAt)
   ) return {
     status: "stale",
@@ -545,6 +675,7 @@ export function releaseFlowDocBackendCompositionWorkerJournalEntryV1(input: {
     journalRevision: current.journalRevision + 1,
     status: "pending",
     claim: null,
+    execution: null,
     lastRelease: {
       claimToken: current.claim.claimToken,
       workerId: current.claim.workerId,
@@ -587,9 +718,13 @@ export function completeFlowDocBackendCompositionWorkerJournalEntryV1(input: {
   if (
     current.status !== "claimed"
     || current.claim == null
+    || current.execution == null
+    || current.execution.claimToken !== input.claimToken
+    || current.execution.phase !== current.state.phase
     || current.journalRevision !== input.expectedJournalRevision
     || current.claim.claimToken !== input.claimToken
     || Date.parse(input.completedAt) < Date.parse(current.claim.claimedAt)
+    || Date.parse(input.completedAt) < Date.parse(current.execution.startedAt)
     || Date.parse(input.completedAt) >= Date.parse(current.claim.expiresAt)
   ) return {
     status: "stale",
@@ -607,6 +742,7 @@ export function completeFlowDocBackendCompositionWorkerJournalEntryV1(input: {
     journalRevision: current.journalRevision + 1,
     status: "completed",
     claim: null,
+    execution: null,
     lastRelease: null,
     terminal,
     updatedAt: input.completedAt,
