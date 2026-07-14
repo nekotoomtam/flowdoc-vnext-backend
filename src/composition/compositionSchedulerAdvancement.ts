@@ -9,7 +9,7 @@ import {
   type FlowDocBackendCompositionContractIssue,
 } from "./compositionSchedulerContractSupport.js"
 import {
-  finalizeFlowDocBackendCompositionJobHeadV1,
+  finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
   type FlowDocBackendCompositionJobStatusV1,
 } from "./compositionSchedulerJobHead.js"
@@ -18,12 +18,13 @@ import {
   type FlowDocBackendCompositionRepositoryV1,
 } from "./compositionSchedulerRepository.js"
 import {
+  summarizeFlowDocBackendCompositionContentRefsV1,
   type FlowDocBackendCompositionContentRefV1,
 } from "./compositionSchedulerSourcePin.js"
 import {
-  finalizeFlowDocBackendCompositionPageChunkV1,
-  finalizeFlowDocBackendCompositionTransitionReceiptV1,
-  parseFlowDocBackendCompositionTransitionReceiptV1,
+  finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1,
+  finalizeFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1,
+  parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1,
   type FlowDocBackendCompositionTransitionReceiptV1,
 } from "./compositionSchedulerTransitionRecords.js"
 
@@ -143,7 +144,7 @@ function finalizeHead(
   changes: Partial<Omit<FlowDocBackendCompositionJobHeadV1, "fingerprint">>,
 ) {
   const { fingerprint: _fingerprint, ...facts } = head
-  return finalizeFlowDocBackendCompositionJobHeadV1({
+  return finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1({
     sourcePin: context.sourcePin,
     manifest: context.manifest,
     value: { ...facts, ...changes },
@@ -173,7 +174,7 @@ async function exactReplay(
     "request.requestId",
     "committed transition replay requires its retained receipt",
   ), ...retained.issues], requestFingerprint, committed.head)
-  const parsed = parseFlowDocBackendCompositionTransitionReceiptV1({
+  const parsed = parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1({
     sourcePin: context.sourcePin,
     manifest: context.manifest,
     value: retained.value,
@@ -359,7 +360,7 @@ export async function advanceFlowDocBackendCompositionV1(input: {
     staged.push({ ref: windowRef, value: window })
   }
   if (core.closedPages.length > 0) {
-    const chunk = finalizeFlowDocBackendCompositionPageChunkV1({
+    const chunk = finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1({
       sourcePin: read.context.sourcePin,
       manifest: read.context.manifest,
       value: {
@@ -398,20 +399,7 @@ export async function advanceFlowDocBackendCompositionV1(input: {
     staged.push({ ref: pageChunkRef, value: chunk.pageChunk })
   }
 
-  for (const item of staged) {
-    const stored = await input.repository.putImmutable(item)
-    if (stored.status !== "written" && stored.status !== "idempotent-replay") {
-      const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
-        code: "composition-transition-staging-failed",
-        message: stored.issues[0]?.message ?? "immutable transition staging failed",
-        path: stored.issues[0]?.path ?? "",
-        retryable: true,
-      }, false)
-      return failure("failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
-    }
-  }
-
-  const receiptResult = finalizeFlowDocBackendCompositionTransitionReceiptV1({
+  const receiptResult = finalizeFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1({
     sourcePin: read.context.sourcePin,
     manifest: read.context.manifest,
     value: {
@@ -457,6 +445,40 @@ export async function advanceFlowDocBackendCompositionV1(input: {
   }
   const receipt = receiptResult.receipt
   const receiptRef = ref(head.jobId, "transition-receipt", `receipt:${transitionNumber}:${receipt.fingerprint.slice(7)}`, receipt)
+  const retentionDelta = summarizeFlowDocBackendCompositionContentRefsV1([
+    ...staged.map((item) => item.ref),
+    receiptRef,
+  ])
+  const retention = {
+    recordCount: head.retention.recordCount + retentionDelta.recordCount,
+    byteCount: head.retention.byteCount + retentionDelta.byteCount,
+  }
+  if (retention.byteCount > read.context.sourcePin.executionLimits.maximumRetainedByteCount) {
+    const issue = compositionIssue(
+      "composition-retained-byte-limit-exceeded",
+      "jobHead.retention.byteCount",
+      "accepted transition evidence would exceed the pinned retained-byte limit",
+    )
+    const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
+      code: issue.code,
+      message: issue.message,
+      path: issue.path,
+      retryable: false,
+    }, true)
+    return failure("blocked", [issue, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
+  }
+  for (const item of staged) {
+    const stored = await input.repository.putImmutable(item)
+    if (stored.status !== "written" && stored.status !== "idempotent-replay") {
+      const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
+        code: "composition-transition-staging-failed",
+        message: stored.issues[0]?.message ?? "immutable transition staging failed",
+        path: stored.issues[0]?.path ?? "",
+        retryable: true,
+      }, false)
+      return failure("failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
+    }
+  }
   const storedReceipt = await input.repository.putImmutable({ ref: receiptRef, value: receipt })
   if (storedReceipt.status !== "written" && storedReceipt.status !== "idempotent-replay") {
     const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
@@ -486,6 +508,7 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       placementCount: core.cursorAfter.closedPrefix.placementCount,
       headingCount: core.cursorAfter.closedPrefix.headingCount,
     },
+    retention,
     lease: null,
     blocker: null,
     updatedAt: input.attempt.completedAt,

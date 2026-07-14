@@ -2,6 +2,7 @@ import {
   parseVNextDocumentCompositionClosedPageV1,
   parseVNextDocumentCompositionManifestV1,
   type VNextDocumentCompositionClosedPageV1,
+  type VNextDocumentCompositionManifestV1,
   type VNextDocumentCompositionTransitionWorkV1,
 } from "@flowdoc/vnext-core"
 import {
@@ -101,6 +102,12 @@ interface Context {
   manifest: unknown
 }
 
+interface ValidatedContext {
+  value: unknown
+  sourcePin: FlowDocBackendCompositionSourcePinV1
+  manifest: VNextDocumentCompositionManifestV1
+}
+
 function parseOwners(context: Context): {
   sourcePin: FlowDocBackendCompositionSourcePinV1 | null
   manifestFingerprint: string | null
@@ -124,6 +131,15 @@ function parseOwners(context: Context): {
   }
 }
 
+function validatedOwners(context: ValidatedContext): ReturnType<typeof parseOwners> {
+  const issues: FlowDocBackendCompositionContractIssue[] = []
+  if (
+    context.sourcePin.manifestFingerprint !== context.manifest.fingerprint
+    || context.sourcePin.documentId !== context.manifest.documentId
+  ) issues.push(compositionIssue("composition-record-owner-mismatch", "manifest", "record context owners do not match"))
+  return { sourcePin: context.sourcePin, manifestFingerprint: context.manifest.fingerprint, issues }
+}
+
 function readNullableFingerprint(
   record: Record<string, unknown>,
   key: string,
@@ -134,12 +150,11 @@ function readNullableFingerprint(
   return readCompositionFingerprint(record, key, path, issues) ?? undefined
 }
 
-function readPageChunkFacts(context: Context, includeFingerprint: boolean): {
+function readPageChunkFacts(context: Context, includeFingerprint: boolean, owners = parseOwners(context)): {
   facts: FlowDocBackendCompositionPageChunkInputV1 | null
   fingerprint: string | null
   issues: FlowDocBackendCompositionContractIssue[]
 } {
-  const owners = parseOwners(context)
   const issues = owners.issues
   const keys = [
     "source", "schemaVersion", "kind", "jobId", "transitionNumber", "manifestFingerprint",
@@ -260,11 +275,36 @@ export function finalizeFlowDocBackendCompositionPageChunkV1(context: Context): 
 export function parseFlowDocBackendCompositionPageChunkV1(context: Context): FlowDocBackendCompositionPageChunkResultV1 {
   const parsed = readPageChunkFacts(context, true)
   if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("pageChunk", parsed.issues)
-  const finalized = finalizeFlowDocBackendCompositionPageChunkV1({ ...context, value: parsed.facts })
-  if (finalized.status === "blocked") return finalized
-  return finalized.pageChunk.fingerprint === parsed.fingerprint ? finalized : blockedCompositionResult("pageChunk", [
+  const facts = cloneCompositionJson(parsed.facts)
+  const pageChunk = { ...facts, fingerprint: compositionFingerprint(facts) }
+  return pageChunk.fingerprint === parsed.fingerprint ? readyCompositionResult("pageChunk", pageChunk) : blockedCompositionResult("pageChunk", [
     compositionIssue("composition-page-chunk-fingerprint-mismatch", "fingerprint", "page chunk fingerprint does not match its facts"),
   ])
+}
+
+export function finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1(
+  context: ValidatedContext,
+): FlowDocBackendCompositionPageChunkResultV1 {
+  const parsed = readPageChunkFacts(context, false, validatedOwners(context))
+  if (parsed.facts == null) return blockedCompositionResult("pageChunk", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  return readyCompositionResult("pageChunk", { ...facts, fingerprint: compositionFingerprint(facts) })
+}
+
+export function parseFlowDocBackendCompositionPageChunkWithValidatedOwnersV1(
+  context: ValidatedContext,
+): FlowDocBackendCompositionPageChunkResultV1 {
+  const parsed = readPageChunkFacts(context, true, validatedOwners(context))
+  if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("pageChunk", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  const pageChunk = { ...facts, fingerprint: compositionFingerprint(facts) }
+  return pageChunk.fingerprint === parsed.fingerprint
+    ? readyCompositionResult("pageChunk", pageChunk)
+    : blockedCompositionResult("pageChunk", [compositionIssue(
+        "composition-page-chunk-fingerprint-mismatch",
+        "fingerprint",
+        "page chunk fingerprint does not match its facts",
+      )])
 }
 
 function readWork(value: unknown, issues: FlowDocBackendCompositionContractIssue[]): VNextDocumentCompositionTransitionWorkV1 | null {
@@ -282,12 +322,11 @@ function readWork(value: unknown, issues: FlowDocBackendCompositionContractIssue
   return keys.every((key) => typeof result[key] === "number") ? result : null
 }
 
-function readReceiptFacts(context: Context, includeFingerprint: boolean): {
+function readReceiptFacts(context: Context, includeFingerprint: boolean, owners = parseOwners(context)): {
   facts: FlowDocBackendCompositionTransitionReceiptInputV1 | null
   fingerprint: string | null
   issues: FlowDocBackendCompositionContractIssue[]
 } {
-  const owners = parseOwners(context)
   const issues = owners.issues
   const keys = [
     "source", "schemaVersion", "kind", "jobId", "transitionNumber", "transitionRequestId",
@@ -408,9 +447,34 @@ export function finalizeFlowDocBackendCompositionTransitionReceiptV1(context: Co
 export function parseFlowDocBackendCompositionTransitionReceiptV1(context: Context): FlowDocBackendCompositionTransitionReceiptResultV1 {
   const parsed = readReceiptFacts(context, true)
   if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("receipt", parsed.issues)
-  const finalized = finalizeFlowDocBackendCompositionTransitionReceiptV1({ ...context, value: parsed.facts })
-  if (finalized.status === "blocked") return finalized
-  return finalized.receipt.fingerprint === parsed.fingerprint ? finalized : blockedCompositionResult("receipt", [
+  const facts = cloneCompositionJson(parsed.facts)
+  const receipt = { ...facts, fingerprint: compositionFingerprint(facts) }
+  return receipt.fingerprint === parsed.fingerprint ? readyCompositionResult("receipt", receipt) : blockedCompositionResult("receipt", [
     compositionIssue("composition-receipt-fingerprint-mismatch", "fingerprint", "transition receipt fingerprint does not match its facts"),
   ])
+}
+
+export function finalizeFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1(
+  context: ValidatedContext,
+): FlowDocBackendCompositionTransitionReceiptResultV1 {
+  const parsed = readReceiptFacts(context, false, validatedOwners(context))
+  if (parsed.facts == null) return blockedCompositionResult("receipt", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  return readyCompositionResult("receipt", { ...facts, fingerprint: compositionFingerprint(facts) })
+}
+
+export function parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1(
+  context: ValidatedContext,
+): FlowDocBackendCompositionTransitionReceiptResultV1 {
+  const parsed = readReceiptFacts(context, true, validatedOwners(context))
+  if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("receipt", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  const receipt = { ...facts, fingerprint: compositionFingerprint(facts) }
+  return receipt.fingerprint === parsed.fingerprint
+    ? readyCompositionResult("receipt", receipt)
+    : blockedCompositionResult("receipt", [compositionIssue(
+        "composition-receipt-fingerprint-mismatch",
+        "fingerprint",
+        "transition receipt fingerprint does not match its facts",
+      )])
 }

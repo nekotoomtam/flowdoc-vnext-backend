@@ -10,13 +10,17 @@ import {
   isCompositionRecord,
   type FlowDocBackendCompositionContractIssue,
 } from "./compositionSchedulerContractSupport.js"
-import { finalizeFlowDocBackendCompositionJobHeadV1, type FlowDocBackendCompositionJobHeadV1 } from "./compositionSchedulerJobHead.js"
-import { finalizeFlowDocBackendCompositionPageChunkV1 } from "./compositionSchedulerTransitionRecords.js"
+import {
+  finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
+  type FlowDocBackendCompositionJobHeadV1,
+} from "./compositionSchedulerJobHead.js"
+import { finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1 } from "./compositionSchedulerTransitionRecords.js"
 import {
   type FlowDocBackendCompositionRepositoryV1,
 } from "./compositionSchedulerRepository.js"
 import {
   finalizeFlowDocBackendCompositionSourcePinV1,
+  summarizeFlowDocBackendCompositionContentRefsV1,
   type FlowDocBackendCompositionContentRefV1,
   type FlowDocBackendCompositionExecutionLimitsV1,
   type FlowDocBackendCompositionSourcePinV1,
@@ -175,8 +179,9 @@ export async function initializeFlowDocBackendCompositionV1(input: {
   )), requestFingerprint)
 
   let chunkRef: FlowDocBackendCompositionContentRefV1 | null = null
+  let chunkValue: { fingerprint: string } | null = null
   if (core.closedPages.length > 0) {
-    const chunkResult = finalizeFlowDocBackendCompositionPageChunkV1({
+    const chunkResult = finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1({
       sourcePin,
       manifest,
       value: {
@@ -198,15 +203,27 @@ export async function initializeFlowDocBackendCompositionV1(input: {
       },
     })
     if (chunkResult.status === "blocked") return blocked("blocked", chunkResult.issues, requestFingerprint)
+    chunkValue = chunkResult.pageChunk
     chunkRef = ref(input.request.jobId, "closed-page-chunk", `${input.request.jobId}:chunk:0`, chunkResult.pageChunk)
-    const stored = await input.repository.putImmutable({ ref: chunkRef, value: chunkResult.pageChunk })
-    if (stored.status !== "written" && stored.status !== "idempotent-replay") return blocked("blocked", stored.issues, requestFingerprint)
   }
 
-  for (const immutable of [
+  const immutableRecords = [
     { ref: sourceSnapshotRef, value: input.source.sourceSnapshot },
     { ref: manifestRef, value: manifest },
-  ]) {
+    ...(chunkRef == null ? [] : [{ ref: chunkRef, value: chunkValue }]),
+  ]
+  const retention = summarizeFlowDocBackendCompositionContentRefsV1(immutableRecords.map((item) => item.ref))
+  if (retention.byteCount > sourcePin.executionLimits.maximumRetainedByteCount) return blocked("blocked", [compositionIssue(
+    "composition-retained-byte-limit-exceeded",
+    "request.executionLimits.maximumRetainedByteCount",
+    "initial source, manifest, and page evidence exceed the pinned retained-byte limit",
+  )], requestFingerprint)
+  for (const immutable of immutableRecords) {
+    if (immutable.value == null) return blocked("blocked", [compositionIssue(
+      "composition-initialization-record-invalid",
+      "immutableRecords",
+      "initial immutable records must be finalized before storage",
+    )], requestFingerprint)
     const stored = await input.repository.putImmutable(immutable)
     if (stored.status !== "written" && stored.status !== "idempotent-replay") return blocked("blocked", stored.issues, requestFingerprint)
   }
@@ -214,7 +231,7 @@ export async function initializeFlowDocBackendCompositionV1(input: {
   const status = core.status === "complete"
     ? "ready-to-finalize"
     : core.reason === "output-limit" ? "ready-to-advance" : "waiting-window"
-  const headResult = finalizeFlowDocBackendCompositionJobHeadV1({
+  const headResult = finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1({
     sourcePin,
     manifest,
     value: {
@@ -238,6 +255,7 @@ export async function initializeFlowDocBackendCompositionV1(input: {
         placementCount: core.cursorAfter.closedPrefix.placementCount,
         headingCount: core.cursorAfter.closedPrefix.headingCount,
       },
+      retention,
       lease: null,
       retry: { attemptCount: 0, retryAfter: null },
       blocker: null,

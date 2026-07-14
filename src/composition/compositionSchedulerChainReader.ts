@@ -13,8 +13,13 @@ import type {
   FlowDocBackendCompositionRepositoryV1,
 } from "./compositionSchedulerRepository.js"
 import {
-  parseFlowDocBackendCompositionPageChunkV1,
-  parseFlowDocBackendCompositionTransitionReceiptV1,
+  summarizeFlowDocBackendCompositionContentRefsV1,
+  type FlowDocBackendCompositionContentRefV1,
+  type FlowDocBackendCompositionRetentionSummaryV1,
+} from "./compositionSchedulerSourcePin.js"
+import {
+  parseFlowDocBackendCompositionPageChunkWithValidatedOwnersV1,
+  parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1,
   type FlowDocBackendCompositionPageChunkV1,
   type FlowDocBackendCompositionTransitionReceiptV1,
 } from "./compositionSchedulerTransitionRecords.js"
@@ -23,6 +28,7 @@ export interface FlowDocBackendCompositionLoadedChainV1 {
   pages: VNextDocumentCompositionClosedPageV1[]
   pageChunks: FlowDocBackendCompositionPageChunkV1[]
   receipts: FlowDocBackendCompositionTransitionReceiptV1[]
+  retention: FlowDocBackendCompositionRetentionSummaryV1
 }
 
 export type FlowDocBackendCompositionLoadedChainResultV1 =
@@ -41,8 +47,13 @@ async function loadPageChunks(input: {
   repository: FlowDocBackendCompositionRepositoryV1
   context: FlowDocBackendCompositionRepositoryContextV1
   head: FlowDocBackendCompositionJobHeadV1
-}): Promise<{ chunks: FlowDocBackendCompositionPageChunkV1[]; issues: FlowDocBackendCompositionContractIssue[] }> {
+}): Promise<{
+  chunks: FlowDocBackendCompositionPageChunkV1[]
+  refs: FlowDocBackendCompositionContentRefV1[]
+  issues: FlowDocBackendCompositionContractIssue[]
+}> {
   const reverse: FlowDocBackendCompositionPageChunkV1[] = []
+  const refs: FlowDocBackendCompositionContentRefV1[] = []
   const issues: FlowDocBackendCompositionContractIssue[] = []
   let fingerprint = input.head.chain.closedPageChunkTipFingerprint
   const seen = new Set<string>()
@@ -61,7 +72,7 @@ async function loadPageChunks(input: {
       issues.push(...read.issues)
       break
     }
-    const parsed = parseFlowDocBackendCompositionPageChunkV1({
+    const parsed = parseFlowDocBackendCompositionPageChunkWithValidatedOwnersV1({
       value: read.value,
       sourcePin: input.context.sourcePin,
       manifest: input.context.manifest,
@@ -75,6 +86,7 @@ async function loadPageChunks(input: {
       break
     }
     reverse.push(parsed.pageChunk)
+    refs.push(read.ref)
     fingerprint = parsed.pageChunk.previousChunkFingerprint
   }
   const chunks = reverse.reverse()
@@ -115,7 +127,7 @@ async function loadPageChunks(input: {
     "jobHead.chain",
     "reachable page chunks must exactly equal the committed head chain and counts",
   ))
-  return { chunks, issues }
+  return { chunks, refs, issues }
 }
 
 async function loadReceipts(input: {
@@ -123,8 +135,13 @@ async function loadReceipts(input: {
   context: FlowDocBackendCompositionRepositoryContextV1
   head: FlowDocBackendCompositionJobHeadV1
   chunks: FlowDocBackendCompositionPageChunkV1[]
-}): Promise<{ receipts: FlowDocBackendCompositionTransitionReceiptV1[]; issues: FlowDocBackendCompositionContractIssue[] }> {
+}): Promise<{
+  receipts: FlowDocBackendCompositionTransitionReceiptV1[]
+  refs: FlowDocBackendCompositionContentRefV1[]
+  issues: FlowDocBackendCompositionContractIssue[]
+}> {
   const reverse: FlowDocBackendCompositionTransitionReceiptV1[] = []
+  const refs: FlowDocBackendCompositionContentRefV1[] = []
   const issues: FlowDocBackendCompositionContractIssue[] = []
   let fingerprint = input.head.chain.transitionReceiptTipFingerprint
   const seen = new Set<string>()
@@ -143,7 +160,7 @@ async function loadReceipts(input: {
       issues.push(...read.issues)
       break
     }
-    const parsed = parseFlowDocBackendCompositionTransitionReceiptV1({
+    const parsed = parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1({
       value: read.value,
       sourcePin: input.context.sourcePin,
       manifest: input.context.manifest,
@@ -157,6 +174,7 @@ async function loadReceipts(input: {
       break
     }
     reverse.push(parsed.receipt)
+    refs.push(read.ref)
     fingerprint = parsed.receipt.previousReceiptFingerprint
   }
   const receipts = reverse.reverse()
@@ -185,6 +203,7 @@ async function loadReceipts(input: {
           `receipts[${index}].windowRef`,
           "receipt window must retain one valid exact common family window",
         ))
+        else refs.push(windowRead.ref)
       }
     }
     if (receipt.pageChunkRef != null) {
@@ -218,7 +237,7 @@ async function loadReceipts(input: {
     "jobHead.chain",
     "reachable receipts and referenced chunks must exactly cover the committed transition head",
   ))
-  return { receipts, issues }
+  return { receipts, refs, issues }
 }
 
 export async function loadFlowDocBackendCompositionChainV1(input: {
@@ -228,7 +247,21 @@ export async function loadFlowDocBackendCompositionChainV1(input: {
 }): Promise<FlowDocBackendCompositionLoadedChainResultV1> {
   const pages = await loadPageChunks(input)
   const receipts = await loadReceipts({ ...input, chunks: pages.chunks })
+  const retention = summarizeFlowDocBackendCompositionContentRefsV1([
+    input.context.sourcePin.sourceSnapshotRef,
+    input.context.sourcePin.manifestRef,
+    ...pages.refs,
+    ...receipts.refs,
+  ])
   const issues = [...pages.issues, ...receipts.issues]
+  if (
+    retention.recordCount !== input.head.retention.recordCount
+    || retention.byteCount !== input.head.retention.byteCount
+  ) issues.push(issue(
+    "composition-retention-head-mismatch",
+    "jobHead.retention",
+    "reachable immutable records must exactly equal committed retention accounting",
+  ))
   return issues.length > 0
     ? blocked(issues)
     : {
@@ -237,6 +270,7 @@ export async function loadFlowDocBackendCompositionChainV1(input: {
           pages: pages.chunks.flatMap((chunk) => chunk.pages),
           pageChunks: pages.chunks,
           receipts: receipts.receipts,
+          retention,
         },
         issues: [],
       }

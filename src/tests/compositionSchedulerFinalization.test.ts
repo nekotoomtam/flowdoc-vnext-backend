@@ -5,16 +5,24 @@ import {
   compositionFingerprint,
   createInMemoryFlowDocBackendCompositionRepositoryV1,
   finalizeFlowDocBackendCompositionV1,
+  finalizeFlowDocBackendCompositionJobHeadV1,
   initializeFlowDocBackendCompositionV1,
+  loadFlowDocBackendCompositionChainV1,
   readFlowDocBackendCompositionProgressV1,
   type FlowDocBackendCompositionRepositoryV1,
 } from "../index.js"
-import { createCompositionSchedulerFixture } from "./helpers/compositionSchedulerFixture.js"
+import {
+  createCompositionSchedulerFixture,
+  rebindCompositionSchedulerWaitingFixtureRetainedByteLimit,
+} from "./helpers/compositionSchedulerFixture.js"
 
 const fp = (value: string) => compositionFingerprint({ value })
 
-async function readyToFinalize(repository: FlowDocBackendCompositionRepositoryV1) {
-  const fixture = createCompositionSchedulerFixture()
+async function readyToFinalize(
+  repository: FlowDocBackendCompositionRepositoryV1,
+  fixture: Pick<ReturnType<typeof createCompositionSchedulerFixture>, "manifest" | "sourcePin" | "waitingHead" | "window">
+    = createCompositionSchedulerFixture(),
+) {
   await repository.createHead({
     createRequestId: "create-finalization",
     requestFingerprint: fp("create-finalization"),
@@ -249,6 +257,31 @@ describe("durable composition scheduler finalization", () => {
     })
   })
 
+  it("blocks a reachable chain whose retained-byte accounting drifts from the head", async () => {
+    const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const { head } = await readyToFinalize(repository)
+    const read = await repository.readHead(head.jobId)
+    if (read.status !== "found") throw new Error("ready head missing")
+    const { fingerprint: _fingerprint, ...facts } = head
+    const drifted = finalizeFlowDocBackendCompositionJobHeadV1({
+      sourcePin: read.context.sourcePin,
+      manifest: read.context.manifest,
+      value: {
+        ...facts,
+        retention: { ...facts.retention, byteCount: facts.retention.byteCount + 1 },
+      },
+    })
+    if (drifted.status === "blocked") throw new Error("drifted head fixture invalid")
+    await expect(loadFlowDocBackendCompositionChainV1({
+      repository,
+      context: read.context,
+      head: drifted.jobHead,
+    })).resolves.toMatchObject({
+      status: "blocked",
+      issues: expect.arrayContaining([expect.objectContaining({ code: "composition-retention-head-mismatch" })]),
+    })
+  })
+
   it("releases the finalization lease when immutable output storage fails", async () => {
     const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
     const { head } = await readyToFinalize(base)
@@ -278,5 +311,39 @@ describe("durable composition scheduler finalization", () => {
         blocker: { code: "test-output-storage-failure", retryable: true },
       },
     })
+  })
+
+  it("blocks without publishing outputs when final artifacts exceed retained-byte quota", async () => {
+    const probeRepository = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const probe = await readyToFinalize(probeRepository)
+    const limitedFixture = rebindCompositionSchedulerWaitingFixtureRetainedByteLimit(
+      createCompositionSchedulerFixture(),
+      probe.head.retention.byteCount + 1,
+    )
+    const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const outputWrites: string[] = []
+    const repository: FlowDocBackendCompositionRepositoryV1 = {
+      ...base,
+      async putImmutable(input) {
+        const kind = (input.ref as { kind?: string }).kind
+        if (kind === "page-plan" || kind === "heading-page-map") outputWrites.push(kind)
+        return base.putImmutable(input)
+      },
+    }
+    const { head } = await readyToFinalize(repository, limitedFixture)
+    expect(head.retention).toEqual(probe.head.retention)
+    const result = await finalizeFlowDocBackendCompositionV1(finalizationInput(repository, head))
+    expect(result).toMatchObject({
+      status: "blocked",
+      jobHead: {
+        status: "blocked",
+        finalOutput: null,
+        retention: head.retention,
+        blocker: { code: "composition-retained-byte-limit-exceeded", retryable: false },
+      },
+      pagePlan: null,
+      headingPageMap: null,
+    })
+    expect(outputWrites).toEqual([])
   })
 })

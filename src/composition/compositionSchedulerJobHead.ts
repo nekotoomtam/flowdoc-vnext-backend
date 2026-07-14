@@ -1,7 +1,7 @@
 import {
   parseVNextDocumentCompositionDemandV1,
   parseVNextDocumentCompositionManifestV1,
-  parseVNextDocumentCompositionStateV1,
+  parseVNextDocumentCompositionStateWithValidatedManifestV1,
   type VNextDocumentCompositionCursorV1,
   type VNextDocumentCompositionDemandV1,
   type VNextDocumentCompositionManifestV1,
@@ -9,6 +9,8 @@ import {
 } from "@flowdoc/vnext-core"
 import {
   FLOWDOC_BACKEND_COMPOSITION_MAX_ATTEMPTS,
+  FLOWDOC_BACKEND_COMPOSITION_MAX_RETAINED_BYTES,
+  FLOWDOC_BACKEND_COMPOSITION_MAX_RETAINED_RECORDS,
   FLOWDOC_BACKEND_COMPOSITION_SCHEMA_VERSION,
   blockedCompositionResult,
   cloneCompositionJson,
@@ -58,6 +60,11 @@ export interface FlowDocBackendCompositionRetryV1 {
   retryAfter: string | null
 }
 
+export interface FlowDocBackendCompositionRetentionV1 {
+  recordCount: number
+  byteCount: number
+}
+
 export interface FlowDocBackendCompositionBlockerV1 {
   code: string
   message: string
@@ -95,6 +102,7 @@ export interface FlowDocBackendCompositionJobHeadInputV1 {
   openPage: VNextDocumentCompositionOpenPageV1 | null
   demand: VNextDocumentCompositionDemandV1 | null
   chain: FlowDocBackendCompositionChainV1
+  retention: FlowDocBackendCompositionRetentionV1
   lease: FlowDocBackendCompositionLeaseV1 | null
   retry: FlowDocBackendCompositionRetryV1
   blocker: FlowDocBackendCompositionBlockerV1 | null
@@ -117,6 +125,12 @@ export interface FlowDocBackendCompositionJobHeadContextV1 {
   value: unknown
   sourcePin: unknown
   manifest: unknown
+}
+
+export interface FlowDocBackendCompositionValidatedJobHeadContextV1 {
+  value: unknown
+  sourcePin: FlowDocBackendCompositionSourcePinV1
+  manifest: VNextDocumentCompositionManifestV1
 }
 
 function coreIssues(
@@ -161,6 +175,23 @@ function readRetry(value: unknown, issues: FlowDocBackendCompositionContractIssu
   let retryAfter: string | null = null
   if (record.retryAfter !== null) retryAfter = readCompositionIsoDate(record, "retryAfter", "retry.retryAfter", issues)
   return attemptCount == null ? null : { attemptCount, retryAfter }
+}
+
+function readRetention(
+  value: unknown,
+  issues: FlowDocBackendCompositionContractIssue[],
+): FlowDocBackendCompositionRetentionV1 | null {
+  const record = readCompositionRecord(value, "retention", ["recordCount", "byteCount"], issues)
+  if (record == null) return null
+  const recordCount = readCompositionInteger(
+    record, "recordCount", "retention.recordCount", 2,
+    FLOWDOC_BACKEND_COMPOSITION_MAX_RETAINED_RECORDS, issues,
+  )
+  const byteCount = readCompositionInteger(
+    record, "byteCount", "retention.byteCount", 1,
+    FLOWDOC_BACKEND_COMPOSITION_MAX_RETAINED_BYTES, issues,
+  )
+  return recordCount == null || byteCount == null ? null : { recordCount, byteCount }
 }
 
 function readBlocker(value: unknown, issues: FlowDocBackendCompositionContractIssue[]): FlowDocBackendCompositionBlockerV1 | null | undefined {
@@ -261,16 +292,33 @@ function parseContext(context: FlowDocBackendCompositionJobHeadContextV1): {
   return { sourcePin, manifest, issues }
 }
 
+function validatedContext(context: FlowDocBackendCompositionValidatedJobHeadContextV1): {
+  sourcePin: FlowDocBackendCompositionSourcePinV1
+  manifest: VNextDocumentCompositionManifestV1
+  issues: FlowDocBackendCompositionContractIssue[]
+} {
+  const issues: FlowDocBackendCompositionContractIssue[] = []
+  if (
+    context.sourcePin.documentId !== context.manifest.documentId
+    || context.sourcePin.manifestFingerprint !== context.manifest.fingerprint
+    || context.sourcePin.resolvedProjectionFingerprint !== context.manifest.resolvedProjectionFingerprint
+  ) issues.push(compositionIssue(
+    "composition-source-manifest-mismatch", "manifest", "manifest must match the exact source pin owners",
+  ))
+  return { sourcePin: context.sourcePin, manifest: context.manifest, issues }
+}
+
 function readJobHeadFacts(
   context: FlowDocBackendCompositionJobHeadContextV1,
   includeFingerprint: boolean,
+  acceptedContext = parseContext(context),
 ): { facts: FlowDocBackendCompositionJobHeadInputV1 | null; fingerprint: string | null; issues: FlowDocBackendCompositionContractIssue[] } {
-  const parsedContext = parseContext(context)
+  const parsedContext = acceptedContext
   const issues = parsedContext.issues
   const keys = [
     "source", "schemaVersion", "kind", "jobId", "headRevision", "sourcePinFingerprint",
     "manifestFingerprint", "status", "transitionNumber", "cursor", "openPage", "demand",
-    "chain", "lease", "retry", "blocker", "finalOutput", "createdAt", "updatedAt", "expiresAt",
+    "chain", "retention", "lease", "retry", "blocker", "finalOutput", "createdAt", "updatedAt", "expiresAt",
     ...(includeFingerprint ? ["fingerprint"] : []),
   ]
   const record = readCompositionRecord(context.value, "", keys, issues)
@@ -285,6 +333,7 @@ function readJobHeadFacts(
   const status = readCompositionEnum(record, "status", "status", FLOWDOC_BACKEND_COMPOSITION_JOB_STATUSES, issues)
   const transitionNumber = readCompositionInteger(record, "transitionNumber", "transitionNumber", 0, 1_000_000, issues)
   const chain = readChain(record.chain, issues)
+  const retention = readRetention(record.retention, issues)
   const lease = readLease(record.lease, issues)
   const retry = readRetry(record.retry, issues)
   const blocker = readBlocker(record.blocker, issues)
@@ -297,7 +346,7 @@ function readJobHeadFacts(
   let cursor: VNextDocumentCompositionCursorV1 | null = null
   let openPage: VNextDocumentCompositionOpenPageV1 | null = null
   if (parsedContext.manifest != null) {
-    const state = parseVNextDocumentCompositionStateV1({
+    const state = parseVNextDocumentCompositionStateWithValidatedManifestV1({
       manifest: parsedContext.manifest,
       cursor: record.cursor,
       openPage: record.openPage,
@@ -385,6 +434,19 @@ function readJobHeadFacts(
   if (retry != null && sourcePin != null && retry.attemptCount > sourcePin.executionLimits.maximumAttemptCount) issues.push(compositionIssue(
     "composition-attempt-limit-exceeded", "retry.attemptCount", "attempt count exceeds the pinned execution limit",
   ))
+  if (retention != null && sourcePin != null) {
+    const initialByteCount = sourcePin.sourceSnapshotRef.byteLength + sourcePin.manifestRef.byteLength
+    if (retention.byteCount < initialByteCount) issues.push(compositionIssue(
+      "composition-retention-initial-bytes-invalid",
+      "retention.byteCount",
+      "retained bytes cannot be lower than the pinned source snapshot and manifest",
+    ))
+    if (retention.byteCount > sourcePin.executionLimits.maximumRetainedByteCount) issues.push(compositionIssue(
+      "composition-retained-byte-limit-exceeded",
+      "retention.byteCount",
+      "retained bytes exceed the pinned execution limit",
+    ))
+  }
   if (createdAt != null && updatedAt != null && expiresAt != null && (
     Date.parse(updatedAt) < Date.parse(createdAt) || Date.parse(updatedAt) > Date.parse(expiresAt)
   )) issues.push(compositionIssue("composition-job-time-invalid", "updatedAt", "updated time must stay within the pinned job lifetime"))
@@ -395,7 +457,7 @@ function readJobHeadFacts(
   if (
     issues.length > 0 || jobId == null || headRevision == null || sourcePinFingerprint == null
     || manifestFingerprint == null || status == null || transitionNumber == null || cursor == null
-    || chain == null || lease === undefined || retry == null || blocker === undefined || finalOutput === undefined
+    || chain == null || retention == null || lease === undefined || retry == null || blocker === undefined || finalOutput === undefined
     || createdAt == null || updatedAt == null || expiresAt == null
   ) return { facts: null, fingerprint, issues }
 
@@ -414,6 +476,7 @@ function readJobHeadFacts(
       openPage,
       demand,
       chain,
+      retention,
       lease,
       retry,
       blocker,
@@ -441,10 +504,35 @@ export function parseFlowDocBackendCompositionJobHeadV1(
 ): FlowDocBackendCompositionJobHeadResultV1 {
   const parsed = readJobHeadFacts(context, true)
   if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("jobHead", parsed.issues)
-  const finalized = finalizeFlowDocBackendCompositionJobHeadV1({ ...context, value: parsed.facts })
-  if (finalized.status === "blocked") return finalized
-  if (finalized.jobHead.fingerprint !== parsed.fingerprint) return blockedCompositionResult("jobHead", [
+  const facts = cloneCompositionJson(parsed.facts)
+  const jobHead = { ...facts, fingerprint: compositionFingerprint(facts) }
+  if (jobHead.fingerprint !== parsed.fingerprint) return blockedCompositionResult("jobHead", [
     compositionIssue("composition-job-head-fingerprint-mismatch", "fingerprint", "job head fingerprint does not match its facts"),
   ])
-  return finalized
+  return readyCompositionResult("jobHead", jobHead)
+}
+
+export function finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1(
+  context: FlowDocBackendCompositionValidatedJobHeadContextV1,
+): FlowDocBackendCompositionJobHeadResultV1 {
+  const parsed = readJobHeadFacts(context, false, validatedContext(context))
+  if (parsed.facts == null) return blockedCompositionResult("jobHead", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  return readyCompositionResult("jobHead", { ...facts, fingerprint: compositionFingerprint(facts) })
+}
+
+export function parseFlowDocBackendCompositionJobHeadWithValidatedContextV1(
+  context: FlowDocBackendCompositionValidatedJobHeadContextV1,
+): FlowDocBackendCompositionJobHeadResultV1 {
+  const parsed = readJobHeadFacts(context, true, validatedContext(context))
+  if (parsed.facts == null || parsed.fingerprint == null) return blockedCompositionResult("jobHead", parsed.issues)
+  const facts = cloneCompositionJson(parsed.facts)
+  const jobHead = { ...facts, fingerprint: compositionFingerprint(facts) }
+  return jobHead.fingerprint === parsed.fingerprint
+    ? readyCompositionResult("jobHead", jobHead)
+    : blockedCompositionResult("jobHead", [compositionIssue(
+        "composition-job-head-fingerprint-mismatch",
+        "fingerprint",
+        "job head fingerprint does not match its facts",
+      )])
 }

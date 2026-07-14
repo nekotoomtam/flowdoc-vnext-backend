@@ -6,15 +6,17 @@ import {
   type FlowDocBackendCompositionContractIssue,
 } from "./compositionSchedulerContractSupport.js"
 import {
-  parseFlowDocBackendCompositionJobHeadV1,
+  parseFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
 import {
   parseFlowDocBackendCompositionContentRefV1,
   parseFlowDocBackendCompositionSourcePinV1,
+  summarizeFlowDocBackendCompositionContentRefsV1,
   type FlowDocBackendCompositionContentRefV1,
   type FlowDocBackendCompositionSourcePinV1,
 } from "./compositionSchedulerSourcePin.js"
+import { parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1 } from "./compositionSchedulerTransitionRecords.js"
 
 export const FLOWDOC_BACKEND_COMPOSITION_REPOSITORY_V1_SOURCE = "flowdoc-backend-composition-repository"
 
@@ -347,7 +349,7 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
           ...(manifest.status === "blocked" ? manifest.issues.map((item) => compositionIssue(item.code, item.path, item.message)) : []),
         ],
       }
-      const parsedHead = parseFlowDocBackendCompositionJobHeadV1({
+      const parsedHead = parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
         value: input.head,
         sourcePin: source.sourcePin,
         manifest: manifest.manifest,
@@ -395,7 +397,7 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
         head: null,
         issues: [compositionIssue("composition-head-not-found", "jobId", "composition job head was not found")],
       }
-      const parsed = parseFlowDocBackendCompositionJobHeadV1({
+      const parsed = parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
         value: stored.head,
         sourcePin: stored.context.sourcePin,
         manifest: stored.context.manifest,
@@ -436,7 +438,7 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
       const parsedRef = parseRef(stored.receiptRef)
       const parsedHead = owner == null
         ? null
-        : parseFlowDocBackendCompositionJobHeadV1({
+        : parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
             value: stored.head,
             sourcePin: owner.context.sourcePin,
             manifest: owner.context.manifest,
@@ -501,7 +503,7 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
       const owner = heads.get(input.jobId)
       const plan = parseRef(stored.pagePlanRef)
       const map = parseRef(stored.headingPageMapRef)
-      const parsedHead = owner == null ? null : parseFlowDocBackendCompositionJobHeadV1({
+      const parsedHead = owner == null ? null : parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
         value: stored.head,
         sourcePin: owner.context.sourcePin,
         manifest: owner.context.manifest,
@@ -596,7 +598,7 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
         head: cloneCompositionJson(stored.head),
         issues: [compositionIssue("composition-head-stale", "expectedHeadRevision", "job head changed before compare-and-swap")],
       }
-      const next = parseFlowDocBackendCompositionJobHeadV1({
+      const next = parseFlowDocBackendCompositionJobHeadWithValidatedContextV1({
         value: input.nextHead,
         sourcePin: stored.context.sourcePin,
         manifest: stored.context.manifest,
@@ -624,10 +626,16 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
         const retained = refResult.ref == null
           ? null
           : immutable.get(immutableKey(refResult.ref.jobId, refResult.ref.recordId))
+        const receipt = retained == null ? null : parseFlowDocBackendCompositionTransitionReceiptWithValidatedOwnersV1({
+          value: retained.value,
+          sourcePin: stored.context.sourcePin,
+          manifest: stored.context.manifest,
+        })
         if (
           refResult.ref == null || retained == null || refResult.ref.jobId !== input.jobId
           || refResult.ref.kind !== "transition-receipt"
           || next.jobHead.chain.transitionReceiptTipFingerprint !== refResult.ref.recordFingerprint
+          || receipt == null || receipt.status === "blocked"
         ) return {
           status: "invalid",
           head: null,
@@ -635,6 +643,23 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
             "composition-committed-receipt-invalid",
             "committedRequest.receiptRef",
             "committed request requires a retained exact receipt reachable from the next head",
+            )],
+          }
+        const delta = summarizeFlowDocBackendCompositionContentRefsV1([
+          refResult.ref,
+          ...(receipt.receipt.windowRef == null ? [] : [receipt.receipt.windowRef]),
+          ...(receipt.receipt.pageChunkRef == null ? [] : [receipt.receipt.pageChunkRef]),
+        ])
+        if (!same(next.jobHead.retention, {
+          recordCount: stored.head.retention.recordCount + delta.recordCount,
+          byteCount: stored.head.retention.byteCount + delta.byteCount,
+        })) return {
+          status: "invalid",
+          head: null,
+          issues: [compositionIssue(
+            "composition-transition-retention-invalid",
+            "nextHead.retention",
+            "transition commit must add the exact retained receipt, window, and page chunk bytes",
           )],
         }
       }
@@ -658,8 +683,31 @@ export function createInMemoryFlowDocBackendCompositionRepositoryV1(): FlowDocBa
             "composition-committed-finalization-invalid",
             "committedFinalization",
             "committed finalization requires retained exact outputs reachable from the completed head",
+            )],
+          }
+        const delta = summarizeFlowDocBackendCompositionContentRefsV1([plan.ref, map.ref])
+        if (!same(next.jobHead.retention, {
+          recordCount: stored.head.retention.recordCount + delta.recordCount,
+          byteCount: stored.head.retention.byteCount + delta.byteCount,
+        })) return {
+          status: "invalid",
+          head: null,
+          issues: [compositionIssue(
+            "composition-finalization-retention-invalid",
+            "nextHead.retention",
+            "finalization commit must add the exact retained output bytes",
           )],
         }
+      }
+      if (input.committedRequest == null && input.committedFinalization == null
+        && !same(next.jobHead.retention, stored.head.retention)) return {
+        status: "invalid",
+        head: null,
+        issues: [compositionIssue(
+          "composition-head-retention-mutation-invalid",
+          "nextHead.retention",
+          "non-content head transitions must preserve exact retention accounting",
+        )],
       }
       stored.head = cloneCompositionJson(next.jobHead)
       if (input.committedRequest != null) committedRequests.set(

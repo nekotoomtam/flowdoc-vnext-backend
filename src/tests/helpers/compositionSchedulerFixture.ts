@@ -12,6 +12,7 @@ import {
   finalizeFlowDocBackendCompositionJobHeadV1,
   finalizeFlowDocBackendCompositionPageChunkV1,
   finalizeFlowDocBackendCompositionSourcePinV1,
+  summarizeFlowDocBackendCompositionContentRefsV1,
   finalizeFlowDocBackendCompositionTransitionReceiptV1,
   type FlowDocBackendCompositionContentRefV1,
   type FlowDocBackendCompositionJobHeadV1,
@@ -147,6 +148,10 @@ export function createCompositionSchedulerFixture(): {
   })
   if (sourcePinResult.status === "blocked") throw new Error(sourcePinResult.issues[0]?.message)
   const sourcePin = sourcePinResult.sourcePin
+  const initialRetention = summarizeFlowDocBackendCompositionContentRefsV1([
+    sourcePin.sourceSnapshotRef,
+    sourcePin.manifestRef,
+  ])
 
   const waitingResult = finalizeFlowDocBackendCompositionJobHeadV1({
     sourcePin,
@@ -172,6 +177,7 @@ export function createCompositionSchedulerFixture(): {
         placementCount: 0,
         headingCount: 0,
       },
+      retention: initialRetention,
       lease: null,
       retry: { attemptCount: 0, retryAfter: null },
       blocker: null,
@@ -291,6 +297,8 @@ export function createCompositionSchedulerFixture(): {
   })
   if (receiptResult.status === "blocked") throw new Error(receiptResult.issues[0]?.message)
   const receipt = receiptResult.receipt
+  const receiptRef = contentRef(jobId, "transition-receipt", "receipt-1", receipt.fingerprint, JSON.stringify(receipt).length)
+  const transitionRetention = summarizeFlowDocBackendCompositionContentRefsV1([windowRef, pageChunkRef, receiptRef])
   const { fingerprint: _waitingFingerprint, ...waitingFacts } = waitingResult.jobHead
   const readyResult = finalizeFlowDocBackendCompositionJobHeadV1({
     sourcePin,
@@ -311,6 +319,10 @@ export function createCompositionSchedulerFixture(): {
         placementCount: completed.cursorAfter.closedPrefix.placementCount,
         headingCount: completed.cursorAfter.closedPrefix.headingCount,
       },
+      retention: {
+        recordCount: initialRetention.recordCount + transitionRetention.recordCount,
+        byteCount: initialRetention.byteCount + transitionRetention.byteCount,
+      },
       updatedAt: createdAt,
     },
   })
@@ -324,6 +336,31 @@ export function createCompositionSchedulerFixture(): {
     pageChunk,
     receipt,
     readyToFinalizeHead: readyResult.jobHead,
+  }
+}
+
+export function rebindCompositionSchedulerWaitingFixtureRetainedByteLimit(
+  fixture: ReturnType<typeof createCompositionSchedulerFixture>,
+  maximumRetainedByteCount: number,
+): Pick<ReturnType<typeof createCompositionSchedulerFixture>, "manifest" | "sourcePin" | "waitingHead" | "window"> {
+  const { fingerprint: _sourcePinFingerprint, ...sourcePinFacts } = fixture.sourcePin
+  const sourcePinResult = finalizeFlowDocBackendCompositionSourcePinV1({
+    ...sourcePinFacts,
+    executionLimits: { ...sourcePinFacts.executionLimits, maximumRetainedByteCount },
+  })
+  if (sourcePinResult.status === "blocked") throw new Error(sourcePinResult.issues[0]?.message)
+  const { fingerprint: _headFingerprint, ...headFacts } = fixture.waitingHead
+  const headResult = finalizeFlowDocBackendCompositionJobHeadV1({
+    sourcePin: sourcePinResult.sourcePin,
+    manifest: fixture.manifest,
+    value: { ...headFacts, sourcePinFingerprint: sourcePinResult.sourcePin.fingerprint },
+  })
+  if (headResult.status === "blocked") throw new Error(headResult.issues[0]?.message)
+  return {
+    manifest: fixture.manifest,
+    sourcePin: sourcePinResult.sourcePin,
+    waitingHead: headResult.jobHead,
+    window: fixture.window,
   }
 }
 
@@ -470,6 +507,10 @@ export function createCompositionSchedulerContinuationFixture(): {
   })
   if (sourcePinResult.status === "blocked") throw new Error(sourcePinResult.issues[0]?.message)
   const sourcePin = sourcePinResult.sourcePin
+  const initialRetention = summarizeFlowDocBackendCompositionContentRefsV1([
+    sourcePin.sourceSnapshotRef,
+    sourcePin.manifestRef,
+  ])
   const initialHeadResult = finalizeFlowDocBackendCompositionJobHeadV1({
     sourcePin,
     manifest,
@@ -494,6 +535,7 @@ export function createCompositionSchedulerContinuationFixture(): {
         placementCount: 0,
         headingCount: 0,
       },
+      retention: initialRetention,
       lease: null,
       retry: { attemptCount: 0, retryAfter: null },
       blocker: null,
@@ -528,6 +570,7 @@ export function createCompositionSchedulerContinuationFixture(): {
         placementCount: advanced.cursorAfter.closedPrefix.placementCount,
         headingCount: advanced.cursorAfter.closedPrefix.headingCount,
       },
+      retention: initialRetention,
       lease: null,
       retry: { attemptCount: 1, retryAfter: null },
       blocker: null,

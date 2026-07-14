@@ -64,6 +64,10 @@ Current slice:
   expiry, source-aware progress, reachable-chain verification, immutable final
   output publication, and exact finalization replay in
   `docs/DURABLE_COMPOSITION_SCHEDULER_RECOVERY_FINALIZATION.md`
+- Phase 391 proves a 240-page mixed-family scheduler run, adds exact committed
+  retention accounting and hard byte limits, repairs repeated owner-validation
+  cost, covers resume/accounting failures, and records production blockers in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_SCALE_READINESS.md`
 
 Not yet included:
 

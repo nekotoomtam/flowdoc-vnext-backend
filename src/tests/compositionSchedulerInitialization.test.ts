@@ -15,6 +15,7 @@ function inputFor(manifest: ReturnType<typeof createCompositionSchedulerFixture>
   baseRevision?: number
   currentRevision?: number
   maximumClosedPageCount?: number
+  maximumRetainedByteCount?: number
 } = {}) {
   const packageFingerprint = fp(`package:${overrides.jobId ?? "initialization"}`)
   return {
@@ -37,7 +38,7 @@ function inputFor(manifest: ReturnType<typeof createCompositionSchedulerFixture>
       executionLimits: {
         maximumTransitionCount: 100,
         maximumAttemptCount: 200,
-        maximumRetainedByteCount: 10_000_000,
+        maximumRetainedByteCount: overrides.maximumRetainedByteCount ?? 10_000_000,
       },
       createdAt: "2026-07-13T08:00:00.000Z",
       expiresAt: "2026-07-14T08:00:00.000Z",
@@ -116,6 +117,21 @@ describe("durable composition scheduler initialization", () => {
     await expect(repository.readImmutable({ jobId: "stale-job", recordId: "stale-job:source" })).resolves.toMatchObject({
       status: "not-found",
     })
+  })
+
+  it("rejects an initial retained-byte overflow before writing records or creating a head", async () => {
+    const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const manifest = createCompositionSchedulerFixture().manifest
+    const input = inputFor(manifest, { jobId: "initial-retention-overflow", maximumRetainedByteCount: 1 })
+    await expect(initializeFlowDocBackendCompositionV1({ repository, ...input })).resolves.toMatchObject({
+      status: "blocked",
+      issues: [expect.objectContaining({ code: "composition-retained-byte-limit-exceeded" })],
+    })
+    await expect(repository.readHead("initial-retention-overflow")).resolves.toMatchObject({ status: "not-found" })
+    await expect(repository.readImmutable({
+      jobId: "initial-retention-overflow",
+      recordId: "initial-retention-overflow:source",
+    })).resolves.toMatchObject({ status: "not-found" })
   })
 
   it("retains initialization pages for an empty document without a fake transition receipt", async () => {

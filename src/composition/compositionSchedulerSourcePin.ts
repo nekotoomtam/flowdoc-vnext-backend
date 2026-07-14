@@ -41,6 +41,22 @@ export interface FlowDocBackendCompositionContentRefV1 {
   byteLength: number
 }
 
+export interface FlowDocBackendCompositionRetentionSummaryV1 {
+  recordCount: number
+  byteCount: number
+}
+
+export function summarizeFlowDocBackendCompositionContentRefsV1(
+  refs: readonly FlowDocBackendCompositionContentRefV1[],
+): FlowDocBackendCompositionRetentionSummaryV1 {
+  const unique = new Map<string, FlowDocBackendCompositionContentRefV1>()
+  refs.forEach((ref) => unique.set(`${ref.jobId}\u0000${ref.kind}\u0000${ref.recordId}`, ref))
+  return {
+    recordCount: unique.size,
+    byteCount: [...unique.values()].reduce((total, ref) => total + ref.byteLength, 0),
+  }
+}
+
 export interface FlowDocBackendCompositionExecutionLimitsV1 {
   maximumTransitionCount: number
   maximumAttemptCount: number

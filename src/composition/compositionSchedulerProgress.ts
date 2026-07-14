@@ -43,6 +43,8 @@ export interface FlowDocBackendCompositionProgressV1 {
     pageCount: number
     placementCount: number
     headingCount: number
+    retainedRecordCount: number
+    retainedByteCount: number
     bodyItemCompletionCount: number
     familyPageCount: number
     pageAdvanceCount: number
@@ -117,6 +119,8 @@ export function createFlowDocBackendCompositionProgressV1(input: {
       pageCount: head.chain.pageCount,
       placementCount: head.chain.placementCount,
       headingCount: head.chain.headingCount,
+      retainedRecordCount: head.retention.recordCount,
+      retainedByteCount: head.retention.byteCount,
       bodyItemCompletionCount: head.cursor.cumulativeWork.bodyItemsCompleted,
       familyPageCount: head.cursor.cumulativeWork.familyPagesConsumed,
       pageAdvanceCount: head.cursor.cumulativeWork.pageAdvances,

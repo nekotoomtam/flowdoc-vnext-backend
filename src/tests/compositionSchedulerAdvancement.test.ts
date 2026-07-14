@@ -10,6 +10,7 @@ import {
   createInMemoryFlowDocBackendCompositionRepositoryV1,
   finalizeFlowDocBackendCompositionJobHeadV1,
   finalizeFlowDocBackendCompositionSourcePinV1,
+  summarizeFlowDocBackendCompositionContentRefsV1,
   type FlowDocBackendCompositionAdvancementAttemptV1,
   type FlowDocBackendCompositionAdvancementRequestV1,
   type FlowDocBackendCompositionRepositoryV1,
@@ -17,6 +18,7 @@ import {
 import {
   createCompositionSchedulerContinuationFixture,
   createCompositionSchedulerFixture,
+  rebindCompositionSchedulerWaitingFixtureRetainedByteLimit,
 } from "./helpers/compositionSchedulerFixture.js"
 
 const fp = (value: string) => compositionFingerprint({ value })
@@ -129,6 +131,10 @@ function createTwoRootFixture() {
         placementCount: 0,
         headingCount: 0,
       },
+      retention: summarizeFlowDocBackendCompositionContentRefsV1([
+        sourcePin.sourceSnapshotRef,
+        sourcePin.manifestRef,
+      ]),
       lease: null,
       retry: { attemptCount: 0, retryAfter: null },
       blocker: null,
@@ -205,6 +211,36 @@ describe("durable composition scheduler advancement", () => {
       jobHead: { headRevision: 4, transitionNumber: 2, status: "ready-to-finalize", lease: null },
       receipt: { demandBeforeFingerprint: null, windowRef: null, reason: "document-complete" },
     })
+  })
+
+  it("blocks before staging when accepted transition evidence would exceed retained-byte quota", async () => {
+    const base = createCompositionSchedulerFixture()
+    const fixture = rebindCompositionSchedulerWaitingFixtureRetainedByteLimit(
+      base,
+      base.waitingHead.retention.byteCount + 1,
+    )
+    const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    await seed(repository, fixture)
+    const result = await advanceFlowDocBackendCompositionV1({
+      repository,
+      request: request("advance-retention-overflow", fixture.waitingHead, fixture.window.fingerprint),
+      attempt: attempt("retention-overflow"),
+      window: fixture.window,
+    })
+    expect(result).toMatchObject({
+      status: "blocked",
+      jobHead: {
+        status: "blocked",
+        transitionNumber: 0,
+        cursor: { fingerprint: fixture.waitingHead.cursor.fingerprint },
+        retention: fixture.waitingHead.retention,
+        blocker: { code: "composition-retained-byte-limit-exceeded", retryable: false },
+      },
+    })
+    await expect(repository.readImmutable({
+      jobId: fixture.waitingHead.jobId,
+      recordId: `window:${fixture.window.fingerprint.slice(7)}`,
+    })).resolves.toMatchObject({ status: "not-found" })
   })
 
   it("commits a receipt without a page chunk while the next root shares the open page", async () => {

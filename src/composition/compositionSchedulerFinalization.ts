@@ -14,14 +14,17 @@ import {
   type FlowDocBackendCompositionContractIssue,
 } from "./compositionSchedulerContractSupport.js"
 import {
-  finalizeFlowDocBackendCompositionJobHeadV1,
+  finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
 import type {
   FlowDocBackendCompositionRepositoryContextV1,
   FlowDocBackendCompositionRepositoryV1,
 } from "./compositionSchedulerRepository.js"
-import type { FlowDocBackendCompositionContentRefV1 } from "./compositionSchedulerSourcePin.js"
+import {
+  summarizeFlowDocBackendCompositionContentRefsV1,
+  type FlowDocBackendCompositionContentRefV1,
+} from "./compositionSchedulerSourcePin.js"
 
 export const FLOWDOC_BACKEND_COMPOSITION_FINALIZATION_V1_SOURCE = "flowdoc-backend-composition-finalization"
 
@@ -132,7 +135,7 @@ function finalizeHead(
   changes: Partial<Omit<FlowDocBackendCompositionJobHeadV1, "fingerprint">>,
 ) {
   const { fingerprint: _fingerprint, ...facts } = head
-  return finalizeFlowDocBackendCompositionJobHeadV1({
+  return finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1({
     sourcePin: context.sourcePin,
     manifest: context.manifest,
     value: { ...facts, ...changes },
@@ -344,6 +347,27 @@ export async function finalizeFlowDocBackendCompositionV1(input: {
   }
   const planRef = ref(head.jobId, "page-plan", `plan:${core.plan.fingerprint.slice(7)}`, core.plan)
   const mapRef = ref(head.jobId, "heading-page-map", `heading-map:${core.headingPageMap.fingerprint.slice(7)}`, core.headingPageMap)
+  const retentionDelta = summarizeFlowDocBackendCompositionContentRefsV1([planRef, mapRef])
+  const retention = {
+    recordCount: head.retention.recordCount + retentionDelta.recordCount,
+    byteCount: head.retention.byteCount + retentionDelta.byteCount,
+  }
+  if (retention.byteCount > read.context.sourcePin.executionLimits.maximumRetainedByteCount) {
+    const issue = compositionIssue(
+      "composition-retained-byte-limit-exceeded",
+      "jobHead.retention.byteCount",
+      "authoritative final outputs would exceed the pinned retained-byte limit",
+    )
+    const released = await releaseLease({
+      repository: input.repository,
+      context: read.context,
+      head: leasedHead,
+      completedAt: input.attempt.completedAt,
+      issue,
+      terminal: true,
+    })
+    return failure("blocked", [issue, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
+  }
   for (const output of [{ ref: planRef, value: core.plan }, { ref: mapRef, value: core.headingPageMap }]) {
     const stored = await input.repository.putImmutable(output)
     if (stored.status !== "written" && stored.status !== "idempotent-replay") {
@@ -369,6 +393,7 @@ export async function finalizeFlowDocBackendCompositionV1(input: {
       pagePlanRef: planRef,
       headingPageMapRef: mapRef,
     },
+    retention,
     updatedAt: input.attempt.completedAt,
   })
   if (next.status === "blocked") {

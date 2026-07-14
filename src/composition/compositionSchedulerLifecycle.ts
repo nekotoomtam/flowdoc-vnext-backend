@@ -4,7 +4,7 @@ import {
   type FlowDocBackendCompositionContractIssue,
 } from "./compositionSchedulerContractSupport.js"
 import {
-  finalizeFlowDocBackendCompositionJobHeadV1,
+  finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
 import {
@@ -83,7 +83,7 @@ function finalizeHead(
   changes: Partial<Omit<FlowDocBackendCompositionJobHeadV1, "fingerprint">>,
 ) {
   const { fingerprint: _fingerprint, ...facts } = head
-  return finalizeFlowDocBackendCompositionJobHeadV1({
+  return finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1({
     sourcePin: context.sourcePin,
     manifest: context.manifest,
     value: { ...facts, ...changes },

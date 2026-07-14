@@ -174,6 +174,41 @@ describe("durable composition scheduler repository", () => {
     expect(results.find((result) => result.status === "stale")).toMatchObject({ head: { headRevision: 1 } })
   })
 
+  it("rejects retention accounting changes outside a committed content transition", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    await repository.createHead({
+      createRequestId: "create-retention-guard",
+      requestFingerprint: fp("create-retention-guard"),
+      sourcePin: fixture.sourcePin,
+      manifest: fixture.manifest,
+      head: fixture.waitingHead,
+    })
+    const { fingerprint: _fingerprint, ...facts } = fixture.waitingHead
+    const changed = finalizeFlowDocBackendCompositionJobHeadV1({
+      sourcePin: fixture.sourcePin,
+      manifest: fixture.manifest,
+      value: {
+        ...facts,
+        headRevision: 1,
+        retention: {
+          ...facts.retention,
+          byteCount: facts.retention.byteCount + 1,
+        },
+      },
+    })
+    if (changed.status === "blocked") throw new Error("retention guard fixture invalid")
+    await expect(repository.compareAndSwapHead({
+      jobId: fixture.waitingHead.jobId,
+      expectedHeadRevision: 0,
+      expectedHeadFingerprint: fixture.waitingHead.fingerprint,
+      nextHead: changed.jobHead,
+    })).resolves.toMatchObject({
+      status: "invalid",
+      issues: [{ code: "composition-head-retention-mutation-invalid" }],
+    })
+  })
+
   it("keeps staged losing content unreachable while leaving the committed head unchanged", async () => {
     const fixture = createCompositionSchedulerFixture()
     const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
