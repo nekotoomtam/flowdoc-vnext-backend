@@ -15,6 +15,8 @@ import {
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
 import { stageFlowDocBackendCompositionImmutableBatchV1 } from "./compositionSchedulerImmutableStaging.js"
+import { createFlowDocBackendCompositionHeadWithAvailabilityV1 } from "./compositionSchedulerHeadPersistence.js"
+import type { FlowDocBackendCompositionTransientAvailabilityV1 } from "./compositionSchedulerProductionRepository.js"
 import { finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1 } from "./compositionSchedulerTransitionRecords.js"
 import {
   type FlowDocBackendCompositionRepositoryV1,
@@ -60,10 +62,11 @@ export type FlowDocBackendCompositionInitializationResultV1 =
     }
   | {
       source: typeof FLOWDOC_BACKEND_COMPOSITION_INITIALIZATION_V1_SOURCE
-      status: "stale" | "blocked"
+      status: "stale" | "blocked" | "unavailable"
       requestFingerprint: string | null
       sourcePin: null
       jobHead: null
+      availability: FlowDocBackendCompositionTransientAvailabilityV1 | null
       issues: FlowDocBackendCompositionContractIssue[]
     }
 
@@ -91,9 +94,10 @@ function validRequest(input: FlowDocBackendCompositionInitializationRequestV1): 
 }
 
 function blocked(
-  status: "stale" | "blocked",
+  status: "stale" | "blocked" | "unavailable",
   issues: FlowDocBackendCompositionContractIssue[],
   requestFingerprint: string | null = null,
+  availability: FlowDocBackendCompositionTransientAvailabilityV1 | null = null,
 ): FlowDocBackendCompositionInitializationResultV1 {
   return {
     source: FLOWDOC_BACKEND_COMPOSITION_INITIALIZATION_V1_SOURCE,
@@ -101,6 +105,7 @@ function blocked(
     requestFingerprint,
     sourcePin: null,
     jobHead: null,
+    availability,
     issues,
   }
 }
@@ -272,13 +277,16 @@ export async function initializeFlowDocBackendCompositionV1(input: {
     },
   })
   if (headResult.status === "blocked") return blocked("blocked", headResult.issues, requestFingerprint)
-  const created = await input.repository.createHead({
+  const created = await createFlowDocBackendCompositionHeadWithAvailabilityV1(input.repository, {
     createRequestId: input.request.requestId,
     requestFingerprint,
     sourcePin,
     manifest,
     head: headResult.jobHead,
   })
+  if (created.status === "unavailable") {
+    return blocked("unavailable", created.issues, requestFingerprint, created.availability)
+  }
   if (created.status !== "created" && created.status !== "idempotent-replay") return blocked("blocked", created.issues, requestFingerprint)
   return {
     source: FLOWDOC_BACKEND_COMPOSITION_INITIALIZATION_V1_SOURCE,

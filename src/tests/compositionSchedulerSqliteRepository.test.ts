@@ -4,7 +4,9 @@ import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   cancelFlowDocBackendCompositionV1,
+  compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1,
   compositionFingerprint,
+  createFlowDocBackendCompositionHeadWithAvailabilityV1,
   createFlowDocBackendCompositionSqliteRepositoryV1,
   finalizeFlowDocBackendCompositionJobHeadV1,
   supportsFlowDocBackendCompositionSqliteCandidateV1,
@@ -178,6 +180,90 @@ describe("composition scheduler SQLite repository candidate", () => {
       const usage = await reopened.inspectPhysicalUsage(fixture.sourcePin.jobId)
       if (point === "before-commit") expect(usage).toMatchObject({ status: "not-found" })
       else expect(usage).toMatchObject({ status: "ready", usage: { recordCount: 2 } })
+    }
+  })
+
+  it("reconciles unknown head create outcomes through the exact create request", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const root = mkdtempSync(join(tmpdir(), `flowdoc-composition-create-availability-${point}-`))
+      roots.push(root)
+      const databasePath = join(root, "composition.sqlite")
+      let injected = false
+      const faulted = await createFlowDocBackendCompositionSqliteRepositoryV1({
+        databasePath,
+        faultInjector(context) {
+          if (!injected && context.transactionKind === "head-create" && context.point === point) {
+            injected = true
+            throw new Error(`injected-create-${point}`)
+          }
+        },
+      })
+      repositories.push(faulted)
+      const input = {
+        createRequestId: `create-availability-${point}`,
+        requestFingerprint: fp(`create-availability-${point}`),
+        sourcePin: fixture.sourcePin,
+        manifest: fixture.manifest,
+        head: fixture.waitingHead,
+      }
+      await expect(createFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)).resolves.toMatchObject({
+        status: "unavailable",
+        availability: { commitState: "unknown", reconcileWith: "create-request" },
+      })
+      faulted.close()
+      const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
+      repositories.push(reopened)
+      await expect(createFlowDocBackendCompositionHeadWithAvailabilityV1(reopened, input)).resolves.toMatchObject({
+        status: point === "before-commit" ? "created" : "idempotent-replay",
+      })
+    }
+  })
+
+  it("reconciles unknown head CAS outcomes by reading the exact next head", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const root = mkdtempSync(join(tmpdir(), `flowdoc-composition-cas-availability-${point}-`))
+      roots.push(root)
+      const databasePath = join(root, "composition.sqlite")
+      let injected = false
+      const faulted = await createFlowDocBackendCompositionSqliteRepositoryV1({
+        databasePath,
+        faultInjector(context) {
+          if (!injected && context.transactionKind === "head-cas" && context.point === point) {
+            injected = true
+            throw new Error(`injected-cas-${point}`)
+          }
+        },
+      })
+      repositories.push(faulted)
+      await faulted.createHead({
+        createRequestId: `create-cas-availability-${point}`,
+        requestFingerprint: fp(`create-cas-availability-${point}`),
+        sourcePin: fixture.sourcePin,
+        manifest: fixture.manifest,
+        head: fixture.waitingHead,
+      })
+      const nextHead = leasedHead(fixture, `availability-${point}`)
+      const input = {
+        jobId: fixture.sourcePin.jobId,
+        expectedHeadRevision: fixture.waitingHead.headRevision,
+        expectedHeadFingerprint: fixture.waitingHead.fingerprint,
+        nextHead,
+      }
+      await expect(compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(faulted, input)).resolves.toMatchObject({
+        status: "unavailable",
+        availability: { commitState: "unknown", reconcileWith: "head-read" },
+      })
+      faulted.close()
+      const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
+      repositories.push(reopened)
+      await expect(reopened.readHead(fixture.sourcePin.jobId)).resolves.toMatchObject({
+        status: "found",
+        head: point === "before-commit"
+          ? { headRevision: fixture.waitingHead.headRevision, fingerprint: fixture.waitingHead.fingerprint }
+          : { headRevision: nextHead.headRevision, fingerprint: nextHead.fingerprint },
+      })
     }
   })
 

@@ -276,6 +276,19 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
   const initialProduction = isFlowDocBackendCompositionProductionRepositoryV1(base) ? base : null
   if (initialProduction != null) Object.assign(repository, {
     productionSource: initialProduction.productionSource,
+    async createHeadWithAvailability(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["createHeadWithAvailability"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost available head creation")
+      const result = await base.createHeadWithAvailability(input)
+      observeHead(result.head)
+      return result
+    },
+    async compareAndSwapHeadWithAvailability(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["compareAndSwapHeadWithAvailability"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost available head CAS")
+      metrics.compareAndSwapCount += 1
+      const result = await base.compareAndSwapHeadWithAvailability(input)
+      observeHead(result.head)
+      return result
+    },
     async putImmutableWithPhysicalAdmission(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["putImmutableWithPhysicalAdmission"]>[0]) {
       if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production admission")
       const result = await base.putImmutableWithPhysicalAdmission(input)

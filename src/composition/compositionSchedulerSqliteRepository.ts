@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite"
 import { compositionIssue } from "./compositionSchedulerContractSupport.js"
 import {
+  createFlowDocBackendCompositionHeadUnavailableResultV1,
   FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
   type FlowDocBackendCompositionProductionRepositoryV1,
 } from "./compositionSchedulerProductionRepository.js"
@@ -108,6 +109,18 @@ function createRepository(
     async createHead(input) {
       return createFlowDocBackendCompositionSqliteHeadV1(database, options, input)
     },
+    async createHeadWithAvailability(input) {
+      try {
+        return createFlowDocBackendCompositionSqliteHeadV1(database, options, input)
+      } catch (error) {
+        if (!isFlowDocBackendCompositionSqliteBusyErrorV1(error)) throw error
+        return createFlowDocBackendCompositionHeadUnavailableResultV1({
+          operation: "head-create",
+          reconcileWith: "create-request",
+          message: "SQLite head creation exceeded its bounded writer wait",
+        })
+      }
+    },
     async readHead(jobId) {
       return readFlowDocBackendCompositionSqliteHeadV1(database, jobId)
     },
@@ -119,6 +132,20 @@ function createRepository(
     },
     async compareAndSwapHead(input) {
       return compareAndSwapFlowDocBackendCompositionSqliteHeadV1(database, options, input)
+    },
+    async compareAndSwapHeadWithAvailability(input) {
+      try {
+        return compareAndSwapFlowDocBackendCompositionSqliteHeadV1(database, options, input)
+      } catch (error) {
+        if (!isFlowDocBackendCompositionSqliteBusyErrorV1(error)) throw error
+        return createFlowDocBackendCompositionHeadUnavailableResultV1({
+          operation: "head-compare-and-swap",
+          reconcileWith: input.committedFinalization != null
+            ? "committed-finalization"
+            : input.committedRequest != null ? "committed-request" : "head-read",
+          message: "SQLite head compare-and-swap exceeded its bounded writer wait",
+        })
+      }
     },
     close() {
       database.close()

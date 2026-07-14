@@ -150,6 +150,31 @@ function createTwoRootFixture() {
 }
 
 describe("durable composition scheduler advancement", () => {
+  it("returns head-read availability when lease acquisition outcome is unknown", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    await seed(base, fixture)
+    const repository: FlowDocBackendCompositionRepositoryV1 = {
+      ...base,
+      async compareAndSwapHead() { throw new Error("provider unavailable") },
+    }
+    await expect(advanceFlowDocBackendCompositionV1({
+      repository,
+      request: request("advance-unavailable", fixture.waitingHead, fixture.window.fingerprint),
+      attempt: attempt("unavailable"),
+      window: fixture.window,
+    })).resolves.toMatchObject({
+      status: "unavailable",
+      jobHead: null,
+      availability: {
+        operation: "head-compare-and-swap",
+        commitState: "unknown",
+        retryable: true,
+        reconcileWith: "head-read",
+      },
+    })
+  })
+
   it("commits one exact family window and replays the retained transition after the head advances", async () => {
     const fixture = createCompositionSchedulerFixture()
     const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
@@ -407,6 +432,8 @@ describe("durable composition scheduler advancement", () => {
     const unavailable = async () => { throw new Error("unused production test method") }
     const repository: FlowDocBackendCompositionRepositoryV1 = Object.assign({}, base, {
       productionSource: FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
+      createHeadWithAvailability: base.createHead,
+      compareAndSwapHeadWithAvailability: base.compareAndSwapHead,
       putImmutableWithPhysicalAdmission: unavailable,
       async putImmutableBatchWithPhysicalAdmission() {
         return {

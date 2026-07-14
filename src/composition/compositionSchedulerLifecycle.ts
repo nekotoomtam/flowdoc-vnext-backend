@@ -11,6 +11,8 @@ import {
   createFlowDocBackendCompositionProgressV1,
   type FlowDocBackendCompositionProgressV1,
 } from "./compositionSchedulerProgress.js"
+import { compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1 } from "./compositionSchedulerHeadPersistence.js"
+import type { FlowDocBackendCompositionTransientAvailabilityV1 } from "./compositionSchedulerProductionRepository.js"
 import type {
   FlowDocBackendCompositionRepositoryContextV1,
   FlowDocBackendCompositionRepositoryV1,
@@ -29,12 +31,14 @@ export type FlowDocBackendCompositionLifecycleResultV1 =
       source: typeof FLOWDOC_BACKEND_COMPOSITION_LIFECYCLE_V1_SOURCE
       status: "updated" | "idempotent-replay" | "not-needed"
       jobHead: FlowDocBackendCompositionJobHeadV1
+      availability: null
       issues: []
     }
   | {
       source: typeof FLOWDOC_BACKEND_COMPOSITION_LIFECYCLE_V1_SOURCE
-      status: "stale" | "busy" | "blocked" | "failed"
+      status: "stale" | "busy" | "blocked" | "failed" | "unavailable"
       jobHead: FlowDocBackendCompositionJobHeadV1 | null
+      availability: FlowDocBackendCompositionTransientAvailabilityV1 | null
       issues: FlowDocBackendCompositionContractIssue[]
     }
 
@@ -68,12 +72,14 @@ function result(
   status: FlowDocBackendCompositionLifecycleResultV1["status"],
   head: FlowDocBackendCompositionJobHeadV1 | null,
   issues: FlowDocBackendCompositionContractIssue[] = [],
+  availability: FlowDocBackendCompositionTransientAvailabilityV1 | null = null,
 ): FlowDocBackendCompositionLifecycleResultV1 {
   return {
     source: FLOWDOC_BACKEND_COMPOSITION_LIFECYCLE_V1_SOURCE,
     status,
     jobHead: head == null ? null : cloneCompositionJson(head),
     issues,
+    availability,
   } as FlowDocBackendCompositionLifecycleResultV1
 }
 
@@ -133,12 +139,15 @@ async function commit(
     headRevision: current.headRevision + 1,
   })
   if (next.status === "blocked") return result("failed", current, next.issues)
-  const committed = await repository.compareAndSwapHead({
+  const committed = await compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(repository, {
     jobId: current.jobId,
     expectedHeadRevision: current.headRevision,
     expectedHeadFingerprint: current.fingerprint,
     nextHead: next.jobHead,
   })
+  if (committed.status === "unavailable") {
+    return result("unavailable", null, committed.issues, committed.availability)
+  }
   if (committed.status === "committed") return result("updated", committed.head)
   if (committed.status === "stale") return result("stale", committed.head, committed.issues)
   return result("failed", current, committed.issues)

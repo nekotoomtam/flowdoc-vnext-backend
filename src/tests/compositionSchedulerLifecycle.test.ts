@@ -10,6 +10,7 @@ import {
   recoverExpiredFlowDocBackendCompositionLeaseV1,
   scheduleFlowDocBackendCompositionRetryV1,
   type FlowDocBackendCompositionJobHeadV1,
+  type FlowDocBackendCompositionRepositoryV1,
 } from "../index.js"
 import { createCompositionSchedulerFixture } from "./helpers/compositionSchedulerFixture.js"
 
@@ -59,6 +60,28 @@ function leased(fixture: ReturnType<typeof createCompositionSchedulerFixture>) {
 }
 
 describe("durable composition scheduler lifecycle", () => {
+  it("returns head-read availability when a lifecycle CAS outcome is unknown", async () => {
+    const { fixture, repository: base } = await seed()
+    const repository: FlowDocBackendCompositionRepositoryV1 = {
+      ...base,
+      async compareAndSwapHead() { throw new Error("provider unavailable") },
+    }
+    await expect(cancelFlowDocBackendCompositionV1({
+      repository,
+      expectation: expectation(fixture.waitingHead),
+      requestedAt: "2026-07-13T08:01:00.000Z",
+    })).resolves.toMatchObject({
+      status: "unavailable",
+      jobHead: null,
+      availability: {
+        operation: "head-compare-and-swap",
+        commitState: "unknown",
+        retryable: true,
+        reconcileWith: "head-read",
+      },
+    })
+  })
+
   it("recovers only an expired lease, retains backoff, and gates early advancement", async () => {
     const { fixture, repository } = await seed()
     const abandoned = leased(fixture)

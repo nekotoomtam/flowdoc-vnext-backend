@@ -88,6 +88,10 @@ Current slice:
   bounded immutable busy errors, but fails the provisional throughput target
   and exposes the missing typed head-availability contract in
   `docs/DURABLE_COMPOSITION_SCHEDULER_CONCURRENCY_QUALIFICATION.md`
+- Phase 396 adds provider-neutral typed head availability, reconciliation lanes,
+  bounded reconcile-before-retry decisions, and scheduler-wide unavailable
+  outcomes while preserving repository V1 behavior in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_TRANSIENT_AVAILABILITY.md`
 
 Not yet included:
 

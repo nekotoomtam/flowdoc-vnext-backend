@@ -14,6 +14,8 @@ import {
   type FlowDocBackendCompositionJobStatusV1,
 } from "./compositionSchedulerJobHead.js"
 import { stageFlowDocBackendCompositionImmutableBatchV1 } from "./compositionSchedulerImmutableStaging.js"
+import { compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1 } from "./compositionSchedulerHeadPersistence.js"
+import type { FlowDocBackendCompositionTransientAvailabilityV1 } from "./compositionSchedulerProductionRepository.js"
 import {
   type FlowDocBackendCompositionRepositoryContextV1,
   type FlowDocBackendCompositionRepositoryV1,
@@ -61,12 +63,13 @@ interface AdvancementSuccess {
 
 interface AdvancementFailure {
   source: typeof FLOWDOC_BACKEND_COMPOSITION_ADVANCEMENT_V1_SOURCE
-  status: "stale" | "conflict" | "busy" | "rejected" | "blocked" | "failed"
+  status: "stale" | "conflict" | "busy" | "rejected" | "blocked" | "failed" | "unavailable"
   requestFingerprint: string | null
   jobHead: FlowDocBackendCompositionJobHeadV1 | null
   receipt: null
   windowRef: null
   pageChunkRef: null
+  availability: FlowDocBackendCompositionTransientAvailabilityV1 | null
   issues: FlowDocBackendCompositionContractIssue[]
 }
 
@@ -115,6 +118,7 @@ function failure(
   issues: FlowDocBackendCompositionContractIssue[],
   requestFingerprint: string | null,
   jobHead: FlowDocBackendCompositionJobHeadV1 | null = null,
+  availability: FlowDocBackendCompositionTransientAvailabilityV1 | null = null,
 ): AdvancementFailure {
   return {
     source: FLOWDOC_BACKEND_COMPOSITION_ADVANCEMENT_V1_SOURCE,
@@ -124,6 +128,7 @@ function failure(
     receipt: null,
     windowRef: null,
     pageChunkRef: null,
+    availability,
     issues,
   }
 }
@@ -210,7 +215,7 @@ async function clearLease(
     updatedAt: completedAt,
   })
   if (next.status === "blocked") return { status: "invalid" as const, head: null, issues: next.issues }
-  return repository.compareAndSwapHead({
+  return compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(repository, {
     jobId: leasedHead.jobId,
     expectedHeadRevision: leasedHead.headRevision,
     expectedHeadFingerprint: leasedHead.fingerprint,
@@ -316,12 +321,15 @@ export async function advanceFlowDocBackendCompositionV1(input: {
     updatedAt: input.attempt.acquiredAt,
   })
   if (leased.status === "blocked") return failure("failed", leased.issues, requestFingerprint, head)
-  const acquired = await input.repository.compareAndSwapHead({
+  const acquired = await compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(input.repository, {
     jobId: head.jobId,
     expectedHeadRevision: head.headRevision,
     expectedHeadFingerprint: head.fingerprint,
     nextHead: leased.jobHead,
   })
+  if (acquired.status === "unavailable") {
+    return failure("unavailable", acquired.issues, requestFingerprint, null, acquired.availability)
+  }
   if (acquired.status !== "committed") {
     if (acquired.status === "stale") return failure("stale", acquired.issues, requestFingerprint, acquired.head)
     return failure(acquired.status === "conflict" ? "conflict" : "failed", acquired.issues, requestFingerprint)
@@ -343,6 +351,13 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: first.path,
       retryable,
     }, !retryable)
+    if (released.status === "unavailable") return failure(
+      "unavailable",
+      [...coreIssues("core", core.issues), ...released.issues],
+      requestFingerprint,
+      null,
+      released.availability,
+    )
     if (released.status !== "committed") return failure(
       released.status === "stale" ? "stale" : "failed",
       [...coreIssues("core", core.issues), ...released.issues],
@@ -389,6 +404,9 @@ export async function advanceFlowDocBackendCompositionV1(input: {
         path: chunk.issues[0]?.path ?? "",
         retryable: true,
       }, false)
+      if (released.status === "unavailable") {
+        return failure("unavailable", [...chunk.issues, ...released.issues], requestFingerprint, null, released.availability)
+      }
       return failure(
         "failed",
         [...chunk.issues, ...released.issues],
@@ -437,6 +455,13 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: receiptResult.issues[0]?.path ?? "",
       retryable: true,
     }, false)
+    if (released.status === "unavailable") return failure(
+      "unavailable",
+      [...receiptResult.issues, ...released.issues],
+      requestFingerprint,
+      null,
+      released.availability,
+    )
     return failure(
       "failed",
       [...receiptResult.issues, ...released.issues],
@@ -466,6 +491,9 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: issue.path,
       retryable: false,
     }, true)
+    if (released.status === "unavailable") {
+      return failure("unavailable", [issue, ...released.issues], requestFingerprint, null, released.availability)
+    }
     return failure("blocked", [issue, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
   const stored = await stageFlowDocBackendCompositionImmutableBatchV1({
@@ -482,6 +510,9 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: stored.issues[0]?.path ?? "",
       retryable: !terminal,
     }, terminal)
+    if (released.status === "unavailable") {
+      return failure("unavailable", [...stored.issues, ...released.issues], requestFingerprint, null, released.availability)
+    }
     return failure(terminal ? "blocked" : "failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
 
@@ -515,6 +546,9 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: next.issues[0]?.path ?? "",
       retryable: true,
     }, false)
+    if (released.status === "unavailable") {
+      return failure("unavailable", [...next.issues, ...released.issues], requestFingerprint, null, released.availability)
+    }
     return failure(
       "failed",
       [...next.issues, ...released.issues],
@@ -522,13 +556,16 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       released.status === "committed" ? released.head : leasedHead,
     )
   }
-  const committed = await input.repository.compareAndSwapHead({
+  const committed = await compareAndSwapFlowDocBackendCompositionHeadWithAvailabilityV1(input.repository, {
     jobId: head.jobId,
     expectedHeadRevision: leasedHead.headRevision,
     expectedHeadFingerprint: leasedHead.fingerprint,
     nextHead: next.jobHead,
     committedRequest: { requestId: input.request.requestId, requestFingerprint, receiptRef },
   })
+  if (committed.status === "unavailable") {
+    return failure("unavailable", committed.issues, requestFingerprint, null, committed.availability)
+  }
   if (committed.status === "idempotent-replay") {
     const replayed = await exactReplay(input.repository, read.context, input.request, requestFingerprint)
     return replayed ?? failure("failed", [compositionIssue(
@@ -545,6 +582,13 @@ export async function advanceFlowDocBackendCompositionV1(input: {
       path: committed.issues[0]?.path ?? "",
       retryable: true,
     }, false)
+    if (released.status === "unavailable") return failure(
+      "unavailable",
+      [...committed.issues, ...released.issues],
+      requestFingerprint,
+      null,
+      released.availability,
+    )
     return failure(committed.status === "conflict" ? "conflict" : "failed", [...committed.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
   return {

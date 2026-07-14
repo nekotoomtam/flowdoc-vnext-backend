@@ -90,6 +90,25 @@ function emptyManifest() {
 }
 
 describe("durable composition scheduler finalization", () => {
+  it("returns head-read availability when finalization lease acquisition is unknown", async () => {
+    const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const prepared = await readyToFinalize(base)
+    const repository: FlowDocBackendCompositionRepositoryV1 = {
+      ...base,
+      async compareAndSwapHead() { throw new Error("provider unavailable") },
+    }
+    await expect(finalizeFlowDocBackendCompositionV1(finalizationInput(repository, prepared.head))).resolves.toMatchObject({
+      status: "unavailable",
+      jobHead: null,
+      availability: {
+        operation: "head-compare-and-swap",
+        commitState: "unknown",
+        retryable: true,
+        reconcileWith: "head-read",
+      },
+    })
+  })
+
   it("verifies the committed chain, publishes exact outputs, and replays them", async () => {
     const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
     const { fixture, head } = await readyToFinalize(repository)

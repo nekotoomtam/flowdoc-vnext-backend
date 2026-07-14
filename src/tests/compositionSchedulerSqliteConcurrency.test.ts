@@ -232,13 +232,23 @@ describe("composition scheduler SQLite concurrent job evidence", () => {
         })
         expect(elapsedMs).toBeGreaterThanOrEqual(80)
         expect(elapsedMs).toBeLessThan(2_000)
-        await expect(contender.createHead({
+        const createInput = {
           createRequestId: "busy-head-create",
           requestFingerprint: compositionFingerprint({ value: "busy-head-create" }),
           sourcePin: fixture.sourcePin,
           manifest: fixture.manifest,
           head: fixture.waitingHead,
-        })).rejects.toThrow(/database is locked/iu)
+        }
+        await expect(contender.createHeadWithAvailability(createInput)).resolves.toMatchObject({
+          status: "unavailable",
+          availability: {
+            operation: "head-create",
+            commitState: "unknown",
+            retryable: true,
+            reconcileWith: "create-request",
+          },
+        })
+        await expect(contender.createHead(createInput)).rejects.toThrow(/database is locked/iu)
       } finally {
         writeFileSync(releasePath, "release", "utf8")
         await expect(holder).resolves.toMatchObject({ code: 0, signal: null, output: { released: true } })

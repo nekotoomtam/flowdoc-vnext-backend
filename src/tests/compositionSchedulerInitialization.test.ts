@@ -4,6 +4,7 @@ import {
   compositionFingerprint,
   createInMemoryFlowDocBackendCompositionRepositoryV1,
   initializeFlowDocBackendCompositionV1,
+  type FlowDocBackendCompositionRepositoryV1,
 } from "../index.js"
 import { createCompositionSchedulerFixture } from "./helpers/compositionSchedulerFixture.js"
 
@@ -79,6 +80,25 @@ function emptyManifest(sectionCount: number) {
 }
 
 describe("durable composition scheduler initialization", () => {
+  it("returns typed create-request availability when head creation outcome is unknown", async () => {
+    const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    const repository: FlowDocBackendCompositionRepositoryV1 = {
+      ...base,
+      async createHead() { throw new Error("provider unavailable") },
+    }
+    const input = inputFor(createCompositionSchedulerFixture().manifest, { jobId: "initialization-unavailable" })
+    await expect(initializeFlowDocBackendCompositionV1({ repository, ...input })).resolves.toMatchObject({
+      status: "unavailable",
+      jobHead: null,
+      availability: {
+        operation: "head-create",
+        commitState: "unknown",
+        retryable: true,
+        reconcileWith: "create-request",
+      },
+    })
+  })
+
   it("pins source, initializes core demand, stages immutable owners, and replays exactly", async () => {
     const repository = createInMemoryFlowDocBackendCompositionRepositoryV1()
     const manifest = createCompositionSchedulerFixture().manifest
