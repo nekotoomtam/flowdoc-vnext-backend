@@ -35,14 +35,15 @@ const profiles: Array<{
   { family: "media-flow", rootNodeType: "image" },
 ]
 
-function createManifest(pageCount: number) {
-  const documentStructure = fp(`backend-scale-structure:${pageCount}`)
-  const resolvedProjection = fp(`backend-scale-projection:${pageCount}`)
+function createManifest(pageCount: number, jobKey?: string) {
+  const identity = jobKey == null ? `${pageCount}` : `${pageCount}:${jobKey}`
+  const documentStructure = fp(`backend-scale-structure:${identity}`)
+  const resolvedProjection = fp(`backend-scale-projection:${identity}`)
   const result = finalizeVNextDocumentCompositionManifestV1({
     source: "vnext-document-composition-manifest",
     contractVersion: 1,
     kind: "document-composition-manifest",
-    documentId: `backend-scale-document-${pageCount}`,
+    documentId: `backend-scale-document-${pageCount}${jobKey == null ? "" : `-${jobKey}`}`,
     documentStructureFingerprint: documentStructure,
     resolvedProjectionFingerprint: resolvedProjection,
     sections: [{
@@ -202,10 +203,11 @@ export interface FlowDocBackendCompositionScaleMetrics {
 export async function runFlowDocBackendCompositionScale(pageCount: number, options: {
   repository?: FlowDocBackendCompositionRepositoryV1
   reopenRepository?: () => Promise<FlowDocBackendCompositionRepositoryV1>
+  jobKey?: string
 } = {}) {
   const startedAt = performance.now()
-  const manifest = createManifest(pageCount)
-  const packageFingerprint = fp(`backend-scale-package:${pageCount}`)
+  const manifest = createManifest(pageCount, options.jobKey)
+  const packageFingerprint = fp(`backend-scale-package:${pageCount}${options.jobKey == null ? "" : `:${options.jobKey}`}`)
   let base = options.repository ?? createInMemoryFlowDocBackendCompositionRepositoryV1()
   const writesByKind = Object.fromEntries([
     "source-snapshot", "composition-manifest", "family-window", "closed-page-chunk",
@@ -310,7 +312,7 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
     repository,
     request: {
       requestId: "initialize-backend-scale",
-      jobId: `backend-scale-job-${pageCount}`,
+      jobId: `backend-scale-job-${pageCount}${options.jobKey == null ? "" : `-${options.jobKey}`}`,
       documentId: manifest.documentId,
       baseRevision: 12,
       profiles: {

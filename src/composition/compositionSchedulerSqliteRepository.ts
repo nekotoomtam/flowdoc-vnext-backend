@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite"
+import { compositionIssue } from "./compositionSchedulerContractSupport.js"
 import {
   FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
   type FlowDocBackendCompositionProductionRepositoryV1,
@@ -21,6 +22,7 @@ import {
 import { cleanupFlowDocBackendCompositionSqliteUnreachableV1 } from "./compositionSchedulerSqliteMaintenance.js"
 import {
   FLOWDOC_BACKEND_COMPOSITION_SQLITE_CANDIDATE_SOURCE,
+  isFlowDocBackendCompositionSqliteBusyErrorV1,
   openFlowDocBackendCompositionSqliteDatabaseV1,
   type FlowDocBackendCompositionSqliteCandidateOptionsV1,
 } from "./compositionSchedulerSqliteSupport.js"
@@ -54,10 +56,39 @@ function createRepository(
       return result
     },
     async putImmutableWithPhysicalAdmission(input) {
-      return putFlowDocBackendCompositionSqliteImmutableV1(database, options, input)
+      try {
+        return putFlowDocBackendCompositionSqliteImmutableV1(database, options, input)
+      } catch (error) {
+        if (!isFlowDocBackendCompositionSqliteBusyErrorV1(error)) throw error
+        return {
+          status: "storage-error",
+          ref: null,
+          usage: null,
+          issues: [compositionIssue(
+            "composition-sqlite-busy",
+            "repository",
+            "SQLite immutable admission exceeded its bounded writer wait",
+          )],
+        }
+      }
     },
     async putImmutableBatchWithPhysicalAdmission(input) {
-      return putFlowDocBackendCompositionSqliteImmutableBatchV1(database, options, input)
+      try {
+        return putFlowDocBackendCompositionSqliteImmutableBatchV1(database, options, input)
+      } catch (error) {
+        if (!isFlowDocBackendCompositionSqliteBusyErrorV1(error)) throw error
+        return {
+          status: "storage-error",
+          refs: null,
+          writtenRecordCount: 0,
+          usage: null,
+          issues: [compositionIssue(
+            "composition-sqlite-busy",
+            "repository",
+            "SQLite immutable batch admission exceeded its bounded writer wait",
+          )],
+        }
+      }
     },
     async readImmutable(input) {
       return readFlowDocBackendCompositionSqliteImmutableV1(database, input)

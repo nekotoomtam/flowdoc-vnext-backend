@@ -51,6 +51,10 @@ export function supportsFlowDocBackendCompositionSqliteCandidateV1(
   return actual != null && minimum != null && versionAtLeast(actual, minimum)
 }
 
+export function isFlowDocBackendCompositionSqliteBusyErrorV1(error: unknown): boolean {
+  return error instanceof Error && /database(?: table)? is locked/iu.test(error.message)
+}
+
 export async function openFlowDocBackendCompositionSqliteDatabaseV1(
   options: FlowDocBackendCompositionSqliteCandidateOptionsV1,
 ): Promise<DatabaseSync> {

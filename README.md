@@ -83,6 +83,11 @@ Current slice:
   whole-batch crash/replay/quota behavior, and reduces the exact 240-page SQLite
   workload to 481 immutable transactions in
   `docs/DURABLE_COMPOSITION_SCHEDULER_ATOMIC_BATCH.md`
+- Phase 395 runs four independent composition processes against one SQLite
+  database, proves per-job correctness, fairness, restart isolation, and
+  bounded immutable busy errors, but fails the provisional throughput target
+  and exposes the missing typed head-availability contract in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_CONCURRENCY_QUALIFICATION.md`
 
 Not yet included:
 
