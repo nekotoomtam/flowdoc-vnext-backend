@@ -68,6 +68,11 @@ Current slice:
   retention accounting and hard byte limits, repairs repeated owner-validation
   cost, covers resume/accounting failures, and records production blockers in
   `docs/DURABLE_COMPOSITION_SCHEDULER_SCALE_READINESS.md`
+- Phase 392 defines the production repository extension and strict conformance
+  gate for atomic head/request commits, immutable indexes, bounded batch reads,
+  independent-process CAS, crash/restart recovery, physical quota admission,
+  and reachability-safe cleanup; concrete storage remains unselected in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_REPOSITORY_CONFORMANCE.md`
 
 Not yet included:
 
