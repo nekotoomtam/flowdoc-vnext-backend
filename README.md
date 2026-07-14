@@ -96,6 +96,10 @@ Current slice:
   creation/head/request/finalization reconciliation, separate bounded write and
   read-failure budgets, lease-window safety, and four-lane SQLite restart
   evidence in `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_RECONCILIATION.md`
+- Phase 398 adds a durable worker-attempt journal with exact mutation/state
+  retention, atomic expiring claims, duplicate-delivery replay, expiry reclaim,
+  terminal completion, and SQLite restart/crash evidence in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_WORKER_JOURNAL.md`
 
 Not yet included:
 

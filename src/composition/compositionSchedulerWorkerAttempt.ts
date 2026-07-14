@@ -63,6 +63,22 @@ export type FlowDocBackendCompositionWorkerAttemptStateResultV1 =
   | { status: "ready"; state: FlowDocBackendCompositionWorkerReconcileStateV1; issues: [] }
   | { status: "blocked"; state: null; issues: FlowDocBackendCompositionContractIssue[] }
 
+export type FlowDocBackendCompositionWorkerStorageAttemptInspectionResultV1 =
+  | {
+      status: "ready"
+      jobId: string
+      mutationFingerprint: string
+      notBefore: string
+      issues: []
+    }
+  | {
+      status: "blocked"
+      jobId: null
+      mutationFingerprint: null
+      notBefore: null
+      issues: FlowDocBackendCompositionContractIssue[]
+    }
+
 type ReconciliationEvidence = FlowDocBackendCompositionTransientAvailabilityV1["reconcileWith"]
 
 export type FlowDocBackendCompositionWorkerReconciliationResultV1 =
@@ -300,6 +316,64 @@ function finalizedState<T extends Omit<FlowDocBackendCompositionWorkerStorageAtt
   state: T,
 ): T & { fingerprint: string } {
   return { ...state, fingerprint: compositionFingerprint(state) }
+}
+
+export function inspectFlowDocBackendCompositionWorkerStorageAttemptV1(input: {
+  mutation: FlowDocBackendCompositionWorkerHeadMutationV1
+  state: FlowDocBackendCompositionWorkerStorageAttemptStateV1
+}): FlowDocBackendCompositionWorkerStorageAttemptInspectionResultV1 {
+  const facts = mutationFacts(input.mutation)
+  if (facts == null || !validBaseState(input.state, input.mutation, facts)) return {
+    status: "blocked",
+    jobId: null,
+    mutationFingerprint: null,
+    notBefore: null,
+    issues: invalidStateIssue(),
+  }
+  if (input.state.phase === "reconcile") {
+    if (
+      input.state.reconcileNotBefore != null
+      && (
+        !exactIso(input.state.reconcileNotBefore)
+        || Date.parse(input.state.reconcileNotBefore) < Date.parse(input.state.unavailableAt)
+      )
+    ) return {
+      status: "blocked",
+      jobId: null,
+      mutationFingerprint: null,
+      notBefore: null,
+      issues: invalidStateIssue(),
+    }
+    return {
+      status: "ready",
+      jobId: facts.jobId,
+      mutationFingerprint: facts.fingerprint,
+      notBefore: input.state.reconcileNotBefore ?? input.state.unavailableAt,
+      issues: [],
+    }
+  }
+  const decision = decideFlowDocBackendCompositionTransientRetryV1({
+    availability: input.state.availability,
+    completedAttemptCount: input.state.completedWriteAttemptCount,
+  })
+  if (
+    decision.status !== "retry"
+    || input.state.nextWriteAttemptNumber !== decision.nextAttemptNumber
+    || input.state.retryNotBefore !== addMilliseconds(input.state.unavailableAt, decision.delayMilliseconds)
+  ) return {
+    status: "blocked",
+    jobId: null,
+    mutationFingerprint: null,
+    notBefore: null,
+    issues: invalidStateIssue(),
+  }
+  return {
+    status: "ready",
+    jobId: facts.jobId,
+    mutationFingerprint: facts.fingerprint,
+    notBefore: input.state.retryNotBefore,
+    issues: [],
+  }
 }
 
 export function createFlowDocBackendCompositionWorkerStorageAttemptV1(input: {

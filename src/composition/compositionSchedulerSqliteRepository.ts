@@ -23,14 +23,26 @@ import {
 } from "./compositionSchedulerSqliteHeadStore.js"
 import { cleanupFlowDocBackendCompositionSqliteUnreachableV1 } from "./compositionSchedulerSqliteMaintenance.js"
 import {
+  claimFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  completeFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  createFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  readFlowDocBackendCompositionSqliteWorkerAttemptV1,
+  releaseFlowDocBackendCompositionSqliteWorkerAttemptV1,
+} from "./compositionSchedulerSqliteWorkerJournalStore.js"
+import {
   FLOWDOC_BACKEND_COMPOSITION_SQLITE_CANDIDATE_SOURCE,
   isFlowDocBackendCompositionSqliteBusyErrorV1,
   openFlowDocBackendCompositionSqliteDatabaseV1,
   type FlowDocBackendCompositionSqliteCandidateOptionsV1,
 } from "./compositionSchedulerSqliteSupport.js"
+import {
+  FLOWDOC_BACKEND_COMPOSITION_WORKER_JOURNAL_REPOSITORY_V1_SOURCE,
+  type FlowDocBackendCompositionWorkerJournalRepositoryV1,
+} from "./compositionSchedulerWorkerJournalRepository.js"
 
 export interface FlowDocBackendCompositionSqliteRepositoryV1
-  extends FlowDocBackendCompositionProductionRepositoryV1 {
+  extends FlowDocBackendCompositionProductionRepositoryV1,
+    FlowDocBackendCompositionWorkerJournalRepositoryV1 {
   candidateSource: typeof FLOWDOC_BACKEND_COMPOSITION_SQLITE_CANDIDATE_SOURCE
   databasePath: string
   close(): void
@@ -44,6 +56,7 @@ function createRepository(
     source: "flowdoc-backend-composition-repository",
     productionSource: FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
     candidateSource: FLOWDOC_BACKEND_COMPOSITION_SQLITE_CANDIDATE_SOURCE,
+    workerJournalSource: FLOWDOC_BACKEND_COMPOSITION_WORKER_JOURNAL_REPOSITORY_V1_SOURCE,
     databasePath: options.databasePath,
 
     async putImmutable(input) {
@@ -150,6 +163,21 @@ function createRepository(
           message: "SQLite head compare-and-swap exceeded its bounded writer wait",
         })
       }
+    },
+    async createWorkerAttempt(input) {
+      return createFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
+    },
+    async readWorkerAttempt(attemptId) {
+      return readFlowDocBackendCompositionSqliteWorkerAttemptV1(database, attemptId)
+    },
+    async claimWorkerAttempt(input) {
+      return claimFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
+    },
+    async releaseWorkerAttempt(input) {
+      return releaseFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
+    },
+    async completeWorkerAttempt(input) {
+      return completeFlowDocBackendCompositionSqliteWorkerAttemptV1(database, options, input)
     },
     close() {
       database.close()

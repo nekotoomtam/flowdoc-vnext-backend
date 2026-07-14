@@ -9,6 +9,10 @@ export type FlowDocBackendCompositionSqliteTransactionKindV1 =
   | "head-create"
   | "head-cas"
   | "cleanup"
+  | "worker-journal-create"
+  | "worker-journal-claim"
+  | "worker-journal-release"
+  | "worker-journal-complete"
 
 export type FlowDocBackendCompositionSqliteFaultPointV1 =
   | "before-commit"
@@ -117,6 +121,17 @@ export async function openFlowDocBackendCompositionSqliteDatabaseV1(
       head_json TEXT NOT NULL,
       PRIMARY KEY (job_id, request_id)
     ) STRICT;
+    CREATE TABLE IF NOT EXISTS composition_worker_attempts (
+      attempt_id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      mutation_fingerprint TEXT NOT NULL UNIQUE,
+      journal_revision INTEGER NOT NULL CHECK (journal_revision >= 0),
+      status TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'completed')),
+      entry_fingerprint TEXT NOT NULL,
+      entry_json TEXT NOT NULL
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS composition_worker_attempt_status_idx
+      ON composition_worker_attempts (status, job_id, journal_revision, attempt_id);
   `)
   return database
 }
