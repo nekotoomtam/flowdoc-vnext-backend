@@ -8,7 +8,9 @@ import {
 } from "./compositionSchedulerContractSupport.js"
 import {
   FLOWDOC_BACKEND_COMPOSITION_MAX_BATCH_READ_RECORDS,
+  FLOWDOC_BACKEND_COMPOSITION_MAX_BATCH_WRITE_RECORDS,
   type FlowDocBackendCompositionImmutableBatchReadResultV1,
+  type FlowDocBackendCompositionPhysicalAdmissionBatchWriteResultV1,
   type FlowDocBackendCompositionPhysicalAdmissionWriteResultV1,
   type FlowDocBackendCompositionPhysicalUsageResultV1,
 } from "./compositionSchedulerProductionRepository.js"
@@ -146,12 +148,53 @@ export function putFlowDocBackendCompositionSqliteImmutableV1(
     maximumPhysicalByteCount: number | null
   },
 ): FlowDocBackendCompositionPhysicalAdmissionWriteResultV1 {
-  const parsed = validateImmutableInput(input)
-  if (parsed.ref == null) return { status: "invalid", ref: null, issues: parsed.issues }
-  const ref = parsed.ref
+  const result = putFlowDocBackendCompositionSqliteImmutableBatchV1(database, options, {
+    records: [{ ref: input.ref, value: input.value }],
+    storedAt: input.storedAt,
+    maximumPhysicalByteCount: input.maximumPhysicalByteCount,
+  })
+  if (result.status === "written" || result.status === "idempotent-replay") return {
+    status: result.status,
+    ref: result.refs[0]!,
+    issues: [],
+  }
+  if (result.status === "physical-quota-exceeded" || result.status === "storage-error") return {
+    status: result.status,
+    ref: null,
+    usage: result.usage,
+    issues: result.issues,
+  }
+  return { status: result.status, ref: null, issues: result.issues }
+}
+
+export function putFlowDocBackendCompositionSqliteImmutableBatchV1(
+  database: DatabaseSync,
+  options: FlowDocBackendCompositionSqliteCandidateOptionsV1,
+  input: {
+    records: readonly { ref: unknown; value: unknown }[]
+    storedAt: string
+    maximumPhysicalByteCount: number | null
+  },
+): FlowDocBackendCompositionPhysicalAdmissionBatchWriteResultV1 {
+  if (
+    !Array.isArray(input.records) || input.records.length < 1
+    || input.records.length > FLOWDOC_BACKEND_COMPOSITION_MAX_BATCH_WRITE_RECORDS
+  ) return {
+    status: "invalid",
+    refs: null,
+    writtenRecordCount: 0,
+    usage: null,
+    issues: [compositionIssue(
+      "composition-immutable-batch-write-invalid",
+      "records",
+      `batch writes require 1 through ${FLOWDOC_BACKEND_COMPOSITION_MAX_BATCH_WRITE_RECORDS} immutable records`,
+    )],
+  }
   if (!Number.isFinite(Date.parse(input.storedAt)) || new Date(input.storedAt).toISOString() !== input.storedAt) return {
     status: "invalid",
-    ref: null,
+    refs: null,
+    writtenRecordCount: 0,
+    usage: null,
     issues: [compositionIssue("composition-immutable-stored-at-invalid", "storedAt", "storedAt must be an exact ISO date-time")],
   }
   if (input.maximumPhysicalByteCount != null && (
@@ -159,77 +202,144 @@ export function putFlowDocBackendCompositionSqliteImmutableV1(
     || input.maximumPhysicalByteCount > FLOWDOC_BACKEND_COMPOSITION_MAX_RETAINED_BYTES
   )) return {
     status: "invalid",
-    ref: null,
+    refs: null,
+    writtenRecordCount: 0,
+    usage: null,
     issues: [compositionIssue(
       "composition-physical-quota-invalid",
       "maximumPhysicalByteCount",
       "physical byte limit must be a positive bounded integer",
     )],
   }
+  const refs: FlowDocBackendCompositionContentRefV1[] = []
+  const recordIds = new Set<string>()
+  const fingerprints = new Set<string>()
+  let jobId: string | null = null
+  for (let index = 0; index < input.records.length; index += 1) {
+    const record = input.records[index]!
+    const parsed = validateImmutableInput(record)
+    if (parsed.ref == null) return {
+      status: "invalid",
+      refs: null,
+      writtenRecordCount: 0,
+      usage: null,
+      issues: parsed.issues.map((issue) => ({ ...issue, path: `records[${index}].${issue.path}` })),
+    }
+    const ref = parsed.ref
+    if (jobId == null) jobId = ref.jobId
+    if (ref.jobId !== jobId) return {
+      status: "invalid",
+      refs: null,
+      writtenRecordCount: 0,
+      usage: null,
+      issues: [compositionIssue(
+        "composition-immutable-batch-write-owner-invalid",
+        `records[${index}].ref.jobId`,
+        "every atomic immutable batch record must belong to the same job",
+      )],
+    }
+    const fingerprintKey = `${ref.kind}\u0000${ref.recordFingerprint}`
+    if (recordIds.has(ref.recordId) || fingerprints.has(fingerprintKey)) return {
+      status: "invalid",
+      refs: null,
+      writtenRecordCount: 0,
+      usage: null,
+      issues: [compositionIssue(
+        "composition-immutable-batch-write-duplicate",
+        `records[${index}].ref`,
+        "an atomic immutable batch cannot repeat a record id or kind fingerprint",
+      )],
+    }
+    recordIds.add(ref.recordId)
+    fingerprints.add(fingerprintKey)
+    refs.push(ref)
+  }
+  if (jobId == null) throw new Error("validated immutable batch lost its job owner")
   return runFlowDocBackendCompositionSqliteTransactionV1(
     database,
     "immutable-write",
     () => {
-      const current = readFlowDocBackendCompositionSqliteImmutableRowV1(database, ref.jobId, ref.recordId)
-      if (current != null) {
-        const retained = parseFlowDocBackendCompositionSqliteImmutableRowV1(current)
-        return retained != null && same(retained.ref, ref) && same(retained.value, input.value)
-          ? { status: "idempotent-replay" as const, ref: cloneCompositionJson(ref), issues: [] as [] }
-          : {
-              status: "conflict" as const,
-              ref: null,
-              issues: [compositionIssue(
-                "composition-immutable-conflict",
-                "ref.recordId",
-                "immutable record id was already used with different content",
-              )],
-            }
+      const pending: Array<{ ref: FlowDocBackendCompositionContentRefV1; value: unknown }> = []
+      for (let index = 0; index < refs.length; index += 1) {
+        const ref = refs[index]!
+        const value = input.records[index]!.value
+        const current = readFlowDocBackendCompositionSqliteImmutableRowV1(database, ref.jobId, ref.recordId)
+        if (current != null) {
+          const retained = parseFlowDocBackendCompositionSqliteImmutableRowV1(current)
+          if (retained != null && same(retained.ref, ref) && same(retained.value, value)) continue
+          return {
+            status: "conflict" as const,
+            refs: null,
+            writtenRecordCount: 0 as const,
+            usage: null,
+            issues: [compositionIssue(
+              "composition-immutable-conflict",
+              `records[${index}].ref.recordId`,
+              "immutable record id was already used with different content",
+            )],
+          }
+        }
+        const fingerprintOwner = readRowByFingerprint(database, ref.jobId, ref.kind, ref.recordFingerprint)
+        if (fingerprintOwner != null) return {
+          status: "conflict" as const,
+          refs: null,
+          writtenRecordCount: 0 as const,
+          usage: null,
+          issues: [compositionIssue(
+            "composition-immutable-fingerprint-conflict",
+            `records[${index}].ref.recordFingerprint`,
+            "immutable fingerprint was already retained under another record id",
+          )],
+        }
+        pending.push({ ref, value })
       }
-      const fingerprintOwner = readRowByFingerprint(database, ref.jobId, ref.kind, ref.recordFingerprint)
-      if (fingerprintOwner != null) return {
-        status: "conflict" as const,
-        ref: null,
-        issues: [compositionIssue(
-          "composition-immutable-fingerprint-conflict",
-          "ref.recordFingerprint",
-          "immutable fingerprint was already retained under another record id",
-        )],
-      }
-      const currentUsage = usage(database, ref.jobId)
+      const currentUsage = usage(database, jobId)
+      const pendingByteCount = pending.reduce((total, record) => total + record.ref.byteLength, 0)
       if (
         input.maximumPhysicalByteCount != null
-        && currentUsage.byte_count + ref.byteLength > input.maximumPhysicalByteCount
+        && currentUsage.byte_count + pendingByteCount > input.maximumPhysicalByteCount
       ) return {
         status: "physical-quota-exceeded" as const,
-        ref: null,
+        refs: null,
+        writtenRecordCount: 0 as const,
         usage: { recordCount: currentUsage.record_count, byteCount: currentUsage.byte_count },
         issues: [compositionIssue(
           "composition-physical-quota-exceeded",
           "maximumPhysicalByteCount",
-          "first immutable write would exceed the exact physical byte limit",
+          "atomic immutable batch would exceed the exact physical byte limit",
         )],
       }
-      database.prepare(`
+      const insert = database.prepare(`
         INSERT INTO composition_immutable_records (
           job_id, record_id, kind, record_fingerprint, byte_length, value_json, stored_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        ref.jobId,
-        ref.recordId,
-        ref.kind,
-        ref.recordFingerprint,
-        ref.byteLength,
-        JSON.stringify(input.value),
+      `)
+      for (const record of pending) insert.run(
+        record.ref.jobId,
+        record.ref.recordId,
+        record.ref.kind,
+        record.ref.recordFingerprint,
+        record.ref.byteLength,
+        JSON.stringify(record.value),
         input.storedAt,
       )
-      database.prepare(`
-        INSERT INTO composition_physical_usage (job_id, record_count, byte_count)
-        VALUES (?, 1, ?)
-        ON CONFLICT (job_id) DO UPDATE SET
-          record_count = record_count + 1,
-          byte_count = byte_count + excluded.byte_count
-      `).run(ref.jobId, ref.byteLength)
-      return { status: "written" as const, ref: cloneCompositionJson(ref), issues: [] as [] }
+      if (pending.length > 0) database.prepare(`
+          INSERT INTO composition_physical_usage (job_id, record_count, byte_count)
+          VALUES (?, ?, ?)
+          ON CONFLICT (job_id) DO UPDATE SET
+            record_count = record_count + excluded.record_count,
+            byte_count = byte_count + excluded.byte_count
+        `).run(jobId, pending.length, pendingByteCount)
+      return {
+        status: pending.length > 0 ? "written" as const : "idempotent-replay" as const,
+        refs: cloneCompositionJson(refs),
+        writtenRecordCount: pending.length,
+        usage: {
+          recordCount: currentUsage.record_count + pending.length,
+          byteCount: currentUsage.byte_count + pendingByteCount,
+        },
+        issues: [] as [],
+      }
     },
     options.faultInjector,
   )

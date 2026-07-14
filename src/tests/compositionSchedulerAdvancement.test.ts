@@ -8,6 +8,7 @@ import {
   advanceFlowDocBackendCompositionV1,
   compositionFingerprint,
   createInMemoryFlowDocBackendCompositionRepositoryV1,
+  FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
   finalizeFlowDocBackendCompositionJobHeadV1,
   finalizeFlowDocBackendCompositionSourcePinV1,
   summarizeFlowDocBackendCompositionContentRefsV1,
@@ -395,6 +396,51 @@ describe("durable composition scheduler advancement", () => {
         status: "waiting-window",
         lease: null,
         blocker: { code: "composition-transition-staging-failed", retryable: true },
+      },
+    })
+  })
+
+  it("blocks a job when production physical admission cannot fit one atomic transition", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    const base = createInMemoryFlowDocBackendCompositionRepositoryV1()
+    await seed(base, fixture)
+    const unavailable = async () => { throw new Error("unused production test method") }
+    const repository: FlowDocBackendCompositionRepositoryV1 = Object.assign({}, base, {
+      productionSource: FLOWDOC_BACKEND_COMPOSITION_PRODUCTION_REPOSITORY_V1_SOURCE,
+      putImmutableWithPhysicalAdmission: unavailable,
+      async putImmutableBatchWithPhysicalAdmission() {
+        return {
+          status: "physical-quota-exceeded" as const,
+          refs: null,
+          writtenRecordCount: 0 as const,
+          usage: fixture.waitingHead.retention,
+          issues: [{
+            code: "composition-physical-quota-exceeded",
+            message: "atomic transition exceeds physical quota",
+            path: "maximumPhysicalByteCount",
+            severity: "error" as const,
+          }],
+        }
+      },
+      readImmutableBatch: unavailable,
+      inspectPhysicalUsage: unavailable,
+      cleanupUnreachable: unavailable,
+    })
+    await expect(advanceFlowDocBackendCompositionV1({
+      repository,
+      request: request("advance-physical-quota", fixture.waitingHead, fixture.window.fingerprint),
+      attempt: attempt("physical-quota"),
+      window: fixture.window,
+    })).resolves.toMatchObject({
+      status: "blocked",
+      issues: [expect.objectContaining({ code: "composition-physical-quota-exceeded" })],
+      jobHead: {
+        headRevision: 2,
+        transitionNumber: 0,
+        status: "blocked",
+        demand: null,
+        lease: null,
+        blocker: { code: "composition-transition-staging-failed", retryable: false },
       },
     })
   })

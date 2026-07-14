@@ -5,6 +5,7 @@ import {
 } from "./compositionSchedulerProductionRepository.js"
 import {
   inspectFlowDocBackendCompositionSqlitePhysicalUsageV1,
+  putFlowDocBackendCompositionSqliteImmutableBatchV1,
   putFlowDocBackendCompositionSqliteImmutableV1,
   readFlowDocBackendCompositionSqliteImmutableBatchV1,
   readFlowDocBackendCompositionSqliteImmutableByFingerprintV1,
@@ -54,6 +55,9 @@ function createRepository(
     },
     async putImmutableWithPhysicalAdmission(input) {
       return putFlowDocBackendCompositionSqliteImmutableV1(database, options, input)
+    },
+    async putImmutableBatchWithPhysicalAdmission(input) {
+      return putFlowDocBackendCompositionSqliteImmutableBatchV1(database, options, input)
     },
     async readImmutable(input) {
       return readFlowDocBackendCompositionSqliteImmutableV1(database, input)

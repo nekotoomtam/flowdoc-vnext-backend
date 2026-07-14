@@ -14,6 +14,7 @@ import {
   finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
+import { stageFlowDocBackendCompositionImmutableBatchV1 } from "./compositionSchedulerImmutableStaging.js"
 import { finalizeFlowDocBackendCompositionPageChunkWithValidatedOwnersV1 } from "./compositionSchedulerTransitionRecords.js"
 import {
   type FlowDocBackendCompositionRepositoryV1,
@@ -218,14 +219,19 @@ export async function initializeFlowDocBackendCompositionV1(input: {
     "request.executionLimits.maximumRetainedByteCount",
     "initial source, manifest, and page evidence exceed the pinned retained-byte limit",
   )], requestFingerprint)
-  for (const immutable of immutableRecords) {
-    if (immutable.value == null) return blocked("blocked", [compositionIssue(
-      "composition-initialization-record-invalid",
-      "immutableRecords",
-      "initial immutable records must be finalized before storage",
-    )], requestFingerprint)
-    const stored = await input.repository.putImmutable(immutable)
-    if (stored.status !== "written" && stored.status !== "idempotent-replay") return blocked("blocked", stored.issues, requestFingerprint)
+  if (immutableRecords.some((immutable) => immutable.value == null)) return blocked("blocked", [compositionIssue(
+    "composition-initialization-record-invalid",
+    "immutableRecords",
+    "initial immutable records must be finalized before storage",
+  )], requestFingerprint)
+  const stored = await stageFlowDocBackendCompositionImmutableBatchV1({
+    repository: input.repository,
+    records: immutableRecords as Array<{ ref: FlowDocBackendCompositionContentRefV1; value: unknown }>,
+    storedAt: input.request.createdAt,
+    maximumPhysicalByteCount: sourcePin.executionLimits.maximumRetainedByteCount,
+  })
+  if (stored.status !== "written" && stored.status !== "idempotent-replay") {
+    return blocked("blocked", stored.issues, requestFingerprint)
   }
 
   const status = core.status === "complete"

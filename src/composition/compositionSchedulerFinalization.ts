@@ -17,6 +17,7 @@ import {
   finalizeFlowDocBackendCompositionJobHeadWithValidatedContextV1,
   type FlowDocBackendCompositionJobHeadV1,
 } from "./compositionSchedulerJobHead.js"
+import { stageFlowDocBackendCompositionImmutableBatchV1 } from "./compositionSchedulerImmutableStaging.js"
 import type {
   FlowDocBackendCompositionRepositoryContextV1,
   FlowDocBackendCompositionRepositoryV1,
@@ -368,20 +369,24 @@ export async function finalizeFlowDocBackendCompositionV1(input: {
     })
     return failure("blocked", [issue, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
-  for (const output of [{ ref: planRef, value: core.plan }, { ref: mapRef, value: core.headingPageMap }]) {
-    const stored = await input.repository.putImmutable(output)
-    if (stored.status !== "written" && stored.status !== "idempotent-replay") {
-      const first = stored.issues[0] ?? compositionIssue("composition-finalization-storage-failed", "output", "output storage failed")
-      const released = await releaseLease({
-        repository: input.repository,
-        context: read.context,
-        head: leasedHead,
-        completedAt: input.attempt.completedAt,
-        issue: first,
-        terminal: false,
-      })
-      return failure("failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
-    }
+  const stored = await stageFlowDocBackendCompositionImmutableBatchV1({
+    repository: input.repository,
+    records: [{ ref: planRef, value: core.plan }, { ref: mapRef, value: core.headingPageMap }],
+    storedAt: input.attempt.completedAt,
+    maximumPhysicalByteCount: read.context.sourcePin.executionLimits.maximumRetainedByteCount,
+  })
+  if (stored.status !== "written" && stored.status !== "idempotent-replay") {
+    const terminal = stored.status === "physical-quota-exceeded"
+    const first = stored.issues[0] ?? compositionIssue("composition-finalization-storage-failed", "output", "output storage failed")
+    const released = await releaseLease({
+      repository: input.repository,
+      context: read.context,
+      head: leasedHead,
+      completedAt: input.attempt.completedAt,
+      issue: first,
+      terminal,
+    })
+    return failure(terminal ? "blocked" : "failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
   const next = finalizeHead(read.context, leasedHead, {
     headRevision: leasedHead.headRevision + 1,

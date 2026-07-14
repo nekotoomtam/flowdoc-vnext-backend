@@ -31,6 +31,7 @@ describe("durable composition scheduler scale", () => {
       "heading-page-map": 1,
     })
     expect(result.metrics.immutableWriteCount).toBe(1_202)
+    expect(result.metrics.immutableBatchWriteCount).toBe(0)
     expect(result.metrics.fingerprintReadCount).toBe(719)
     expect(result.metrics.directReadCount).toBe(719)
     expect(result.metrics.compareAndSwapCount).toBe(960)

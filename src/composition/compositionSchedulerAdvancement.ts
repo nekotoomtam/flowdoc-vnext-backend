@@ -13,6 +13,7 @@ import {
   type FlowDocBackendCompositionJobHeadV1,
   type FlowDocBackendCompositionJobStatusV1,
 } from "./compositionSchedulerJobHead.js"
+import { stageFlowDocBackendCompositionImmutableBatchV1 } from "./compositionSchedulerImmutableStaging.js"
 import {
   type FlowDocBackendCompositionRepositoryContextV1,
   type FlowDocBackendCompositionRepositoryV1,
@@ -467,27 +468,21 @@ export async function advanceFlowDocBackendCompositionV1(input: {
     }, true)
     return failure("blocked", [issue, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
-  for (const item of staged) {
-    const stored = await input.repository.putImmutable(item)
-    if (stored.status !== "written" && stored.status !== "idempotent-replay") {
-      const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
-        code: "composition-transition-staging-failed",
-        message: stored.issues[0]?.message ?? "immutable transition staging failed",
-        path: stored.issues[0]?.path ?? "",
-        retryable: true,
-      }, false)
-      return failure("failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
-    }
-  }
-  const storedReceipt = await input.repository.putImmutable({ ref: receiptRef, value: receipt })
-  if (storedReceipt.status !== "written" && storedReceipt.status !== "idempotent-replay") {
+  const stored = await stageFlowDocBackendCompositionImmutableBatchV1({
+    repository: input.repository,
+    records: [...staged, { ref: receiptRef, value: receipt }],
+    storedAt: input.attempt.completedAt,
+    maximumPhysicalByteCount: read.context.sourcePin.executionLimits.maximumRetainedByteCount,
+  })
+  if (stored.status !== "written" && stored.status !== "idempotent-replay") {
+    const terminal = stored.status === "physical-quota-exceeded"
     const released = await clearLease(input.repository, read.context, leasedHead, input.attempt.completedAt, {
-      code: "composition-transition-receipt-stage-failed",
-      message: storedReceipt.issues[0]?.message ?? "transition receipt storage failed",
-      path: storedReceipt.issues[0]?.path ?? "",
-      retryable: true,
-    }, false)
-    return failure("failed", [...storedReceipt.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
+      code: "composition-transition-staging-failed",
+      message: stored.issues[0]?.message ?? "immutable transition staging failed",
+      path: stored.issues[0]?.path ?? "",
+      retryable: !terminal,
+    }, terminal)
+    return failure(terminal ? "blocked" : "failed", [...stored.issues, ...released.issues], requestFingerprint, released.status === "committed" ? released.head : leasedHead)
   }
 
   const status: FlowDocBackendCompositionJobStatusV1 = core.status === "complete"

@@ -54,6 +54,7 @@ describe("composition scheduler SQLite scale evidence", () => {
         status: "ready",
         usage: { recordCount: 1_202, byteCount: 3_224_446 },
       })
+      expect(result.metrics.immutableBatchWriteCount).toBe(481)
       expect(result.metrics.maximumHeadBytes).toBeLessThanOrEqual(5_364)
       expect(result.metrics.elapsedMs).toBeLessThan(90_000)
       expect(result.metrics.finalizationMs).toBeLessThan(15_000)

@@ -78,6 +78,11 @@ Current slice:
   commit-boundary crashes, and completes the 240-page workload across a real
   connection restart; production activation and admitted batch writes remain
   blocked in `docs/DURABLE_COMPOSITION_SCHEDULER_SQLITE_CANDIDATE.md`
+- Phase 394 adds bounded atomic admitted staging for initialization,
+  advancement, and finalization, preserves repository V1 compatibility, proves
+  whole-batch crash/replay/quota behavior, and reduces the exact 240-page SQLite
+  workload to 481 immutable transactions in
+  `docs/DURABLE_COMPOSITION_SCHEDULER_ATOMIC_BATCH.md`
 
 Not yet included:
 

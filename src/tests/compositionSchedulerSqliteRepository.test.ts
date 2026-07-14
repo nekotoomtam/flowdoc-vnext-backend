@@ -71,6 +71,116 @@ describe("composition scheduler SQLite repository candidate", () => {
     expect(supportsFlowDocBackendCompositionSqliteCandidateV1()).toBe(true)
   })
 
+  it("admits immutable batches atomically with exact replay and first-write accounting", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    const { repository } = await open()
+    const values = ["a", "b", "c", "d"].map((name) => ({ fingerprint: fp(`batch-${name}`) }))
+    const refs = values.map((value, index) => contentRef(
+      fixture.sourcePin.jobId,
+      "family-window",
+      `batch-${index}`,
+      value.fingerprint,
+      bytes(value),
+    ))
+    const storedAt = "2026-07-13T07:00:00.000Z"
+    await expect(repository.putImmutableBatchWithPhysicalAdmission({
+      records: [{ ref: refs[0], value: values[0] }, { ref: refs[1], value: values[1] }],
+      storedAt,
+      maximumPhysicalByteCount: refs[0]!.byteLength,
+    })).resolves.toMatchObject({ status: "physical-quota-exceeded", writtenRecordCount: 0 })
+    await expect(repository.readImmutable({ jobId: fixture.sourcePin.jobId, recordId: refs[0]!.recordId }))
+      .resolves.toMatchObject({ status: "not-found" })
+    await expect(repository.readImmutable({ jobId: fixture.sourcePin.jobId, recordId: refs[1]!.recordId }))
+      .resolves.toMatchObject({ status: "not-found" })
+
+    const maximumPhysicalByteCount = refs.reduce((total, ref) => total + ref.byteLength, 0)
+    const first = await repository.putImmutableBatchWithPhysicalAdmission({
+      records: [{ ref: refs[0], value: values[0] }, { ref: refs[1], value: values[1] }],
+      storedAt,
+      maximumPhysicalByteCount,
+    })
+    expect(first).toMatchObject({
+      status: "written",
+      writtenRecordCount: 2,
+      usage: { recordCount: 2, byteCount: refs[0]!.byteLength + refs[1]!.byteLength },
+    })
+    await expect(repository.putImmutableBatchWithPhysicalAdmission({
+      records: [{ ref: refs[0], value: values[0] }, { ref: refs[1], value: values[1] }],
+      storedAt,
+      maximumPhysicalByteCount,
+    })).resolves.toMatchObject({ status: "idempotent-replay", writtenRecordCount: 0 })
+    await expect(repository.putImmutableBatchWithPhysicalAdmission({
+      records: [{ ref: refs[0], value: values[0] }, { ref: refs[2], value: values[2] }],
+      storedAt,
+      maximumPhysicalByteCount,
+    })).resolves.toMatchObject({ status: "written", writtenRecordCount: 1, usage: { recordCount: 3 } })
+
+    const conflictingValue = { fingerprint: fp("batch-conflict") }
+    const conflictingRef = contentRef(
+      fixture.sourcePin.jobId,
+      "family-window",
+      refs[0]!.recordId,
+      conflictingValue.fingerprint,
+      bytes(conflictingValue),
+    )
+    await expect(repository.putImmutableBatchWithPhysicalAdmission({
+      records: [{ ref: refs[3], value: values[3] }, { ref: conflictingRef, value: conflictingValue }],
+      storedAt,
+      maximumPhysicalByteCount,
+    })).resolves.toMatchObject({ status: "conflict", writtenRecordCount: 0 })
+    await expect(repository.readImmutable({ jobId: fixture.sourcePin.jobId, recordId: refs[3]!.recordId }))
+      .resolves.toMatchObject({ status: "not-found" })
+    await expect(repository.inspectPhysicalUsage(fixture.sourcePin.jobId)).resolves.toMatchObject({
+      status: "ready",
+      usage: { recordCount: 3, byteCount: refs[0]!.byteLength + refs[1]!.byteLength + refs[2]!.byteLength },
+    })
+  })
+
+  it("keeps the whole immutable batch on one side of the commit crash boundary", async () => {
+    const fixture = createCompositionSchedulerFixture()
+    for (const point of ["before-commit", "after-commit"] as const) {
+      const root = mkdtempSync(join(tmpdir(), `flowdoc-composition-batch-${point}-`))
+      roots.push(root)
+      const databasePath = join(root, "composition.sqlite")
+      let injected = false
+      const faulted = await createFlowDocBackendCompositionSqliteRepositoryV1({
+        databasePath,
+        faultInjector(context) {
+          if (!injected && context.transactionKind === "immutable-write" && context.point === point) {
+            injected = true
+            throw new Error(`injected-${point}`)
+          }
+        },
+      })
+      repositories.push(faulted)
+      const values = [0, 1].map((index) => ({ fingerprint: fp(`${point}-${index}`) }))
+      const refs = values.map((value, index) => contentRef(
+        fixture.sourcePin.jobId,
+        "family-window",
+        `${point}-${index}`,
+        value.fingerprint,
+        bytes(value),
+      ))
+      await expect(faulted.putImmutableBatchWithPhysicalAdmission({
+        records: [{ ref: refs[0], value: values[0] }, { ref: refs[1], value: values[1] }],
+        storedAt: "2026-07-13T07:00:00.000Z",
+        maximumPhysicalByteCount: 10_000,
+      })).rejects.toThrow(`injected-${point}`)
+      faulted.close()
+
+      const reopened = await createFlowDocBackendCompositionSqliteRepositoryV1({ databasePath })
+      repositories.push(reopened)
+      const expectedStatus = point === "before-commit" ? "not-found" : "found"
+      await expect(reopened.readImmutable({ jobId: fixture.sourcePin.jobId, recordId: refs[0]!.recordId }))
+        .resolves.toMatchObject({ status: expectedStatus })
+      await expect(reopened.readImmutable({ jobId: fixture.sourcePin.jobId, recordId: refs[1]!.recordId }))
+        .resolves.toMatchObject({ status: expectedStatus })
+      const usage = await reopened.inspectPhysicalUsage(fixture.sourcePin.jobId)
+      if (point === "before-commit") expect(usage).toMatchObject({ status: "not-found" })
+      else expect(usage).toMatchObject({ status: "ready", usage: { recordCount: 2 } })
+    }
+  })
+
   it("retains V1 head, transition replay, batch, and usage facts across connection restart", async () => {
     const fixture = createCompositionSchedulerFixture()
     const { root, repository } = await open()

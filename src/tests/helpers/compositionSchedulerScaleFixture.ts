@@ -11,9 +11,11 @@ import {
   createInMemoryFlowDocBackendCompositionRepositoryV1,
   finalizeFlowDocBackendCompositionV1,
   initializeFlowDocBackendCompositionV1,
+  isFlowDocBackendCompositionProductionRepositoryV1,
   readFlowDocBackendCompositionProgressV1,
   type FlowDocBackendCompositionContentKindV1,
   type FlowDocBackendCompositionJobHeadV1,
+  type FlowDocBackendCompositionProductionRepositoryV1,
   type FlowDocBackendCompositionRepositoryV1,
 } from "../../index.js"
 
@@ -185,6 +187,7 @@ function attemptTimes(sequence: number) {
 
 export interface FlowDocBackendCompositionScaleMetrics {
   immutableWriteCount: number
+  immutableBatchWriteCount: number
   immutableWriteBytes: number
   immutableWritesByKind: Record<FlowDocBackendCompositionContentKindV1, number>
   directReadCount: number
@@ -210,6 +213,7 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
   ].map((kind) => [kind, 0])) as Record<FlowDocBackendCompositionContentKindV1, number>
   const metrics: FlowDocBackendCompositionScaleMetrics = {
     immutableWriteCount: 0,
+    immutableBatchWriteCount: 0,
     immutableWriteBytes: 0,
     immutableWritesByKind: writesByKind,
     directReadCount: 0,
@@ -223,15 +227,19 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
   const observeHead = (head: FlowDocBackendCompositionJobHeadV1 | null) => {
     if (head != null) metrics.maximumHeadBytes = Math.max(metrics.maximumHeadBytes, Buffer.byteLength(JSON.stringify(head), "utf8"))
   }
+  const observeWrites = (records: readonly { ref: unknown }[]) => {
+    for (const record of records) {
+      const ref = record.ref as { byteLength: number; kind: FlowDocBackendCompositionContentKindV1 }
+      metrics.immutableWriteCount += 1
+      metrics.immutableWriteBytes += ref.byteLength
+      metrics.immutableWritesByKind[ref.kind] += 1
+    }
+  }
   const repository: FlowDocBackendCompositionRepositoryV1 = {
     ...base,
     async putImmutable(input) {
       const result = await base.putImmutable(input)
-      if (result.status === "written") {
-        metrics.immutableWriteCount += 1
-        metrics.immutableWriteBytes += result.ref.byteLength
-        metrics.immutableWritesByKind[result.ref.kind] += 1
-      }
+      if (result.status === "written") observeWrites([input])
       return result
     },
     async readImmutable(input) {
@@ -263,6 +271,40 @@ export async function runFlowDocBackendCompositionScale(pageCount: number, optio
       return result
     },
   }
+  const initialProduction = isFlowDocBackendCompositionProductionRepositoryV1(base) ? base : null
+  if (initialProduction != null) Object.assign(repository, {
+    productionSource: initialProduction.productionSource,
+    async putImmutableWithPhysicalAdmission(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["putImmutableWithPhysicalAdmission"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production admission")
+      const result = await base.putImmutableWithPhysicalAdmission(input)
+      if (result.status === "written") observeWrites([input])
+      return result
+    },
+    async putImmutableBatchWithPhysicalAdmission(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["putImmutableBatchWithPhysicalAdmission"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production batch admission")
+      const result = await base.putImmutableBatchWithPhysicalAdmission(input)
+      metrics.immutableBatchWriteCount += 1
+      if (result.status === "written") {
+        if (result.writtenRecordCount !== input.records.length) {
+          throw new Error("scale instrumentation does not accept mixed replay batches")
+        }
+        observeWrites(input.records)
+      }
+      return result
+    },
+    async readImmutableBatch(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["readImmutableBatch"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production batch reads")
+      return base.readImmutableBatch(input)
+    },
+    async inspectPhysicalUsage(jobId: string) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production usage inspection")
+      return base.inspectPhysicalUsage(jobId)
+    },
+    async cleanupUnreachable(input: Parameters<FlowDocBackendCompositionProductionRepositoryV1["cleanupUnreachable"]>[0]) {
+      if (!isFlowDocBackendCompositionProductionRepositoryV1(base)) throw new Error("reopened scale repository lost production cleanup")
+      return base.cleanupUnreachable(input)
+    },
+  })
 
   const initialized = await initializeFlowDocBackendCompositionV1({
     repository,
