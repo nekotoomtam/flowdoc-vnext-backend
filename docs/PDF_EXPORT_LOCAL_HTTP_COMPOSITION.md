@@ -2,9 +2,9 @@
 
 Status: `PDF-EXPORT-LOCAL-E` canonical trusted resolver, concrete local
 provider composition, loopback-only PDF HTTP process, dedicated worker
-factory, and request-to-download provider evidence accepted. Editor
-integration, local readiness, deployment, and production binding remain
-closed.
+factory, and request-to-download provider evidence accepted. LOCAL-F adds the
+authenticated exact-pin eligibility contract used by the Editor proxy. Local
+readiness, deployment, and production binding remain closed.
 
 ## Outcome
 
@@ -78,6 +78,22 @@ is selected. PDF routes add no CORS headers; LOCAL-F must use the Editor
 development proxy to keep browser requests same-origin and inject the local
 credential outside application code.
 
+## LOCAL-F Eligibility Contract
+
+The separate local listener now exposes
+`GET /pdf-export-local/eligibility?documentId=...&documentRevision=...`.
+Authentication is required before eligibility is returned. The trusted
+canonical resolver classifies the exact retained pin as `eligible`, another
+revision of that document as `stale`, and every other document as
+`ineligible`. Eligible and stale canonical pins also pass request
+authorization. The check does not invoke admission or create an operation.
+
+The response contains only the requested pin, status, canonical evidence lane
+or public reason, and fixed non-production contract facts. It contains no
+credential, identity, source text, measured contract, resource digest,
+provider detail, or operation identity. It is `no-store`, adds no CORS, and is
+mounted only when the LOCAL-E composition supplies the eligibility inspector.
+
 ## Commands
 
 The ignored environment file can be created or extended without replacing
@@ -117,9 +133,9 @@ repository pools and object-store clients, then proves:
 6. exact caller-key replay returns the existing operation and a later worker
    cycle invokes no work.
 
-The actual-provider suite passes `20/20`, including the LOCAL-E
-request-to-download case. Focused LOCAL-E composition/security/evidence tests
-pass `4/4`.
+The actual-provider suite passes `20/20`, including canonical eligibility and
+the LOCAL-E request-to-download case. Focused LOCAL-E/LOCAL-F composition,
+security, evidence, and eligibility tests pass `6/6`.
 
 Primary evidence:
 
@@ -128,6 +144,7 @@ Primary evidence:
 - `src/pdfExport/pdfExportLocalConfig.ts`;
 - `src/pdfExport/pdfExportLocalComposition.ts`;
 - `src/pdfExport/pdfExportLocalHttpServer.ts`;
+- `src/pdfExport/pdfExportLocalEligibilityHttpHandler.ts`;
 - `src/localPdfExport/pdfExportLocalHttpCommand.ts`;
 - `src/localPdfExport/pdfExportLocalCompositionFactory.ts`;
 - `src/tests/pdfExportLocalComposition.test.ts`; and
@@ -148,8 +165,8 @@ Primary evidence:
 
 ## UNKNOWN
 
-- LOCAL-F Editor capability/eligibility contract and development-proxy
-  credential injection details.
+- Browser lifecycle evidence for an eligible canonical Editor working set; the
+  current product Editor document remains explicitly ineligible.
 - LOCAL-G cancellation timing, corruption/restart matrix, bounded load, and
   resource envelope for the complete local workflow.
 - The first trusted product-document measurement/resource resolver.
@@ -163,10 +180,12 @@ Primary evidence:
   completion, persistence-order, or observability schemas.
 - Existing V-G route body, security, status-redaction, cancellation, or
   verified-download behavior.
-- Editor source, proxy, controls, or production configuration.
+- Production Editor proxy, credential, or configuration.
 - External queue, hosted provider, production renderer, deployment, or any
   production activation flag.
 
-Next phase: `PDF-EXPORT-LOCAL-F` Editor eligibility, request, status,
-cancellation, and verified-download integration through a development-only
-same-origin proxy.
+LOCAL-F Editor evidence is retained in
+`../flowdoc-vnext-editor/docs/PDF_EXPORT_LOCAL_EDITOR_INTEGRATION.md`.
+
+Next phase: `PDF-EXPORT-LOCAL-G` end-to-end restart, cancellation, corruption,
+fidelity, and bounded-load readiness audit. Production remains NO-GO.

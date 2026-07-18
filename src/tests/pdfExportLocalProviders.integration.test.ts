@@ -214,6 +214,25 @@ localDescribe("PDF export LOCAL-C PostgreSQL and S3-compatible integration", () 
         "content-type": "application/json",
         "idempotency-key": `caller-key:local-e:portable:${runId}`,
       }
+      const eligibility = await fetch(
+        `${origin}/pdf-export-local/eligibility?documentId=${encodeURIComponent(FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_ID)}&documentRevision=${FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_REVISION}`,
+        { headers: { authorization: `Bearer ${token}` } },
+      )
+      expect(eligibility.status).toBe(200)
+      expect(eligibility.headers.get("access-control-allow-origin")).toBeNull()
+      await expect(eligibility.json()).resolves.toMatchObject({
+        source: "flowdoc-backend-pdf-export-local-eligibility",
+        status: "eligible",
+        documentId: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_ID,
+        documentRevision: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_REVISION,
+        lane: "canonical-evidence",
+        contracts: {
+          exactDocumentPin: true,
+          requestBodyIdentityFieldsForbidden: true,
+          sameOriginDevelopmentProxyRequired: true,
+          productionBinding: false,
+        },
+      })
       const admitted = await fetch(`${origin}/pdf-exports`, {
         method: "POST",
         headers: requestHeaders,

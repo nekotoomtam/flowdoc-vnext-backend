@@ -168,7 +168,12 @@ try {
   })
   process.stdout.write(`${JSON.stringify({
     status: "passed",
-    phases: ["PDF-EXPORT-LOCAL-C", "PDF-EXPORT-LOCAL-D", "PDF-EXPORT-LOCAL-E"],
+    phases: [
+      "PDF-EXPORT-LOCAL-C",
+      "PDF-EXPORT-LOCAL-D",
+      "PDF-EXPORT-LOCAL-E",
+      "PDF-EXPORT-LOCAL-F",
+    ],
     postgres: "embedded-postgres-17.10",
     minioRelease: MINIO_RELEASE,
     minioSha256: MINIO_SHA256,

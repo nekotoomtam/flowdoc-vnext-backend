@@ -104,6 +104,12 @@ Current slice:
   providers. Separate HTTP/worker connections pass the exact 13-page
   request-to-download and no-render replay lane; Editor, readiness, and
   production remain closed in `docs/PDF_EXPORT_LOCAL_HTTP_COMPOSITION.md`
+- PDF export LOCAL-F adds an authenticated, no-store exact-pin eligibility
+  endpoint to the separate local listener. The Editor uses it with the
+  existing request/status/cancel/download routes through a development-only
+  same-origin proxy; the browser receives no local credential, unsupported
+  product documents are not substituted, and readiness/production remain
+  closed in `../flowdoc-vnext-editor/docs/PDF_EXPORT_LOCAL_EDITOR_INTEGRATION.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

@@ -5,6 +5,10 @@ import {
 } from "./pdfExportOperation.js"
 import type { FlowDocBackendPdfExportHttpHandlerOptionsV1 } from "./pdfExportHttpHandler.js"
 import { createFlowDocBackendPdfExportHttpHandlerV1 } from "./pdfExportHttpHandler.js"
+import {
+  createFlowDocBackendPdfExportLocalEligibilityHttpHandlerV1,
+  type FlowDocBackendPdfExportLocalEligibilityHttpHandlerOptionsV1,
+} from "./pdfExportLocalEligibilityHttpHandler.js"
 
 export const FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_HTTP_SERVER_V1_SOURCE =
   "flowdoc-backend-pdf-export-local-http-server" as const
@@ -81,12 +85,16 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   host: "127.0.0.1"
   port: number
   routeOptions: FlowDocBackendPdfExportHttpHandlerOptionsV1
+  eligibilityOptions?: FlowDocBackendPdfExportLocalEligibilityHttpHandlerOptionsV1
 }): FlowDocBackendPdfExportLocalHttpServerV1 {
   if (input.host !== "127.0.0.1") throw new Error("local PDF HTTP listener must use 127.0.0.1")
   if (!Number.isSafeInteger(input.port) || input.port < 0 || input.port > 65_535) {
     throw new Error("local PDF HTTP port must be an integer from 0 through 65535")
   }
   const handler = createFlowDocBackendPdfExportHttpHandlerV1(input.routeOptions)
+  const eligibilityHandler = input.eligibilityOptions == null
+    ? null
+    : createFlowDocBackendPdfExportLocalEligibilityHttpHandlerV1(input.eligibilityOptions)
   let mounted = false
   let mountedPort: number | null = null
   let startPromise: Promise<FlowDocBackendPdfExportLocalCompositionEvidenceV1> | null = null
@@ -101,6 +109,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
         })
         return
       }
+      if (eligibilityHandler != null && await eligibilityHandler(request, response)) return
       if (await handler(request, response)) return
       writeJson(response, 404, { status: "not-found" })
     } catch {

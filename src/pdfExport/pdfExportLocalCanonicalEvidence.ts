@@ -158,11 +158,32 @@ export interface FlowDocBackendPdfExportLocalCanonicalEvidenceV1 {
   renderer: FlowDocBackendLocalPdfRendererV1
   qualification: FlowDocBackendPdfExportRendererQualificationV1
   admissionResolver: FlowDocBackendPdfExportAdmissionResolverV1
+  inspectEligibility(input: {
+    documentId: string
+    documentRevision: number
+  }): FlowDocBackendPdfExportLocalEligibilityInspectionV1
   createWorkflowInput(
     execution: FlowDocBackendPdfExportLocalWorkerExecutionInputV1,
     repositories: FlowDocBackendPdfExportLocalCanonicalWorkflowRepositoriesV1,
   ): FlowDocBackendPdfExportWorkflowInputV1
 }
+
+export type FlowDocBackendPdfExportLocalEligibilityInspectionV1 =
+  | {
+      status: "eligible"
+      lane: "canonical-evidence"
+      reason: null
+    }
+  | {
+      status: "ineligible"
+      lane: null
+      reason: "unsupported-document"
+    }
+  | {
+      status: "stale"
+      lane: null
+      reason: "revision-mismatch"
+    }
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex")
@@ -533,6 +554,19 @@ export async function createFlowDocBackendPdfExportLocalCanonicalEvidenceV1(
     renderer,
     qualification: qualified.qualification,
     admissionResolver,
+    inspectEligibility(input) {
+      if (input.documentId !== sourceIdentity.documentId) return {
+        status: "ineligible",
+        lane: null,
+        reason: "unsupported-document",
+      }
+      if (input.documentRevision !== sourceIdentity.documentRevision) return {
+        status: "stale",
+        lane: null,
+        reason: "revision-mismatch",
+      }
+      return { status: "eligible", lane: "canonical-evidence", reason: null }
+    },
     createWorkflowInput(execution, repositories) {
       const operation = execution.operation
       const admittedSource = operation.admission.exportIdentity.sourceIdentity

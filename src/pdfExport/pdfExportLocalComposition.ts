@@ -131,6 +131,11 @@ export async function createFlowDocBackendPdfExportLocalHttpCompositionV1(input:
       contentStore: providers.contentStore,
       now: input.now ?? (() => new Date().toISOString()),
     },
+    eligibilityOptions: {
+      authenticator: security.authenticator,
+      authorizer: security.authorizer,
+      inspectEligibility: providers.evidence.inspectEligibility,
+    },
   })
   let closed = false
   return {
