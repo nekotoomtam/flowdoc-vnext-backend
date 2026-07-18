@@ -3,8 +3,9 @@
 Status: `PDF-EXPORT-LOCAL-E` canonical trusted resolver, concrete local
 provider composition, loopback-only PDF HTTP process, dedicated worker
 factory, and request-to-download provider evidence accepted. LOCAL-F adds the
-authenticated exact-pin eligibility contract used by the Editor proxy. Local
-readiness, deployment, and production binding remain closed.
+authenticated exact-pin eligibility contract used by the Editor proxy.
+LOCAL-G now accepts the bounded canonical local-readiness audit. Product
+document eligibility, deployment, and production binding remain closed.
 
 ## Outcome
 
@@ -133,9 +134,10 @@ repository pools and object-store clients, then proves:
 6. exact caller-key replay returns the existing operation and a later worker
    cycle invokes no work.
 
-The actual-provider suite passes `20/20`, including canonical eligibility and
-the LOCAL-E request-to-download case. Focused LOCAL-E/LOCAL-F composition,
-security, evidence, and eligibility tests pass `6/6`.
+The actual-provider suite now passes `24/24`, including canonical eligibility,
+the LOCAL-E request-to-download case, LOCAL-G two-process restart replay, HTTP
+cancellation before handoff, and actual MinIO missing/corrupt readback faults.
+Focused composition/readiness tests pass `8/8`.
 
 Primary evidence:
 
@@ -149,6 +151,9 @@ Primary evidence:
 - `src/localPdfExport/pdfExportLocalCompositionFactory.ts`;
 - `src/tests/pdfExportLocalComposition.test.ts`; and
 - `src/tests/pdfExportLocalProviders.integration.test.ts`.
+
+LOCAL-G measurements and the complete exit-gate matrix are retained in
+`docs/PDF_EXPORT_LOCAL_READINESS_AUDIT.md`.
 
 ## RISK
 
@@ -165,10 +170,8 @@ Primary evidence:
 
 ## UNKNOWN
 
-- Browser lifecycle evidence for an eligible canonical Editor working set; the
+- Browser lifecycle evidence for an eligible product Editor working set; the
   current product Editor document remains explicitly ineligible.
-- LOCAL-G cancellation timing, corruption/restart matrix, bounded load, and
-  resource envelope for the complete local workflow.
 - The first trusted product-document measurement/resource resolver.
 - Production identity, providers, TLS/proxy, rate limits, deployment, SLOs,
   cost, retention, backup, and operations.
@@ -187,5 +190,6 @@ Primary evidence:
 LOCAL-F Editor evidence is retained in
 `../flowdoc-vnext-editor/docs/PDF_EXPORT_LOCAL_EDITOR_INTEGRATION.md`.
 
-Next phase: `PDF-EXPORT-LOCAL-G` end-to-end restart, cancellation, corruption,
-fidelity, and bounded-load readiness audit. Production remains NO-GO.
+LOCAL-A through LOCAL-G local qualification is complete. Next local work is a
+trusted product-document measurement/resource lane and eligible Editor
+lifecycle. Production remains NO-GO and requires its own later review.

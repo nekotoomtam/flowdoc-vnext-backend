@@ -173,6 +173,7 @@ try {
       "PDF-EXPORT-LOCAL-D",
       "PDF-EXPORT-LOCAL-E",
       "PDF-EXPORT-LOCAL-F",
+      "PDF-EXPORT-LOCAL-G",
     ],
     postgres: "embedded-postgres-17.10",
     minioRelease: MINIO_RELEASE,

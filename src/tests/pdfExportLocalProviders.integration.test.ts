@@ -1,4 +1,7 @@
 import { createHash, randomBytes } from "node:crypto"
+import { spawn } from "node:child_process"
+import { resolve } from "node:path"
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import { Pool } from "pg"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import {
@@ -13,18 +16,25 @@ import {
   FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_SHA256,
   loadFlowDocBackendPdfExportLocalHttpConfigV1,
   migrateFlowDocBackendPdfExportLocalPostgresV1,
+  persistFlowDocBackendPdfExportArtifactV1,
+  qualifyFlowDocBackendPdfExportLocalReadinessV1,
   reconcileFlowDocBackendPdfExportResumableOrphanContentV1,
   runFlowDocBackendPdfExportEndToEndCandidateV1,
   type FlowDocBackendPdfExportDueWorkRepositoryV1,
   type FlowDocBackendPdfExportLocalWorkerExecutionInputV1,
   type FlowDocBackendPdfExportLocalPostgresRepositoryFaultsV1,
   type FlowDocBackendPdfExportLocalPostgresRepositoriesV1,
+  type FlowDocBackendPdfExportLocalReadinessInputV1,
   type FlowDocBackendPdfExportS3ContentAddressedStoreV1,
   type FlowDocBackendPdfExportWorkflowInputV1,
 } from "../index.js"
 import {
   createFlowDocBackendPdfExportLocalWorkerCommandRuntimeV1,
 } from "../localPdfExport/pdfExportLocalCompositionFactory.js"
+import {
+  createReadyPdfExportPersistenceFixture,
+  pdfExportPersistenceInput,
+} from "./helpers/pdfExportPersistenceFixture.js"
 import {
   createPdfExportWorkflowFixture,
   pdfExportWorkflowInput,
@@ -90,6 +100,153 @@ function closeStore(value: FlowDocBackendPdfExportS3ContentAddressedStoreV1) {
   value.close()
   const index = openStores.indexOf(value)
   if (index >= 0) openStores.splice(index, 1)
+}
+
+interface LocalProcessEvidenceV1 {
+  mode: "execute" | "replay" | "cancel-before-handoff"
+  mounted: {
+    runtimeProfile: "local-integration"
+    localServerMounted: boolean
+    defaultApplicationServerMounted: boolean
+    listenerScope: "loopback-only"
+    workerStart: "dedicated-command"
+    remoteProviderCallsAllowed: boolean
+    productionBinding: boolean
+  }
+  eligibility: Record<string, unknown> | null
+  admission: { status: string; export: { operationId: string; state: string } }
+  cancellation: { status: string; operationId: string; state: string } | null
+  cycle: {
+    listedCount: number
+    invokedCount: number
+    results: Array<{
+      operationId: string
+      status: string
+      rendererExecuted: boolean
+      persistenceExecuted: boolean
+    }>
+  }
+  status: {
+    status: string
+    export: {
+      operationId: string
+      state: string
+      terminalStatus: string | null
+      stopReason: string | null
+      pageCount: number | null
+      byteLength: number | null
+    }
+  }
+  downloadStatus: number
+  artifact: { byteLength: number; sha256: string } | null
+  metrics: {
+    wallTimeMs: number
+    cpuTimeMs: number
+    peakRssBytes: number
+    rssGrowthBytes: number
+    httpRequestCount: number
+  }
+  publicStatusKeys: string[]
+}
+
+function runLocalProcessEvidence(input: {
+  mode: LocalProcessEvidenceV1["mode"]
+  token: string
+  callerKey: string
+  prefix: string
+}): Promise<LocalProcessEvidenceV1> {
+  return new Promise((resolveEvidence, rejectEvidence) => {
+    const child = spawn(process.execPath, [
+      "--import",
+      "tsx",
+      resolve(process.cwd(), "src/tests/helpers/pdfExportLocalProcessEvidence.ts"),
+      input.mode,
+    ], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        FLOWDOC_PDF_LOCAL_HTTP_HOST: "127.0.0.1",
+        FLOWDOC_PDF_LOCAL_HTTP_PORT: "4012",
+        FLOWDOC_PDF_LOCAL_BEARER_TOKEN: input.token,
+        FLOWDOC_PDF_LOCAL_CALLER_KEY: input.callerKey,
+        FLOWDOC_PDF_LOCAL_S3_PREFIX: input.prefix,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      shell: false,
+    })
+    let stdout = ""
+    let stderr = ""
+    child.stdout.setEncoding("utf8")
+    child.stderr.setEncoding("utf8")
+    child.stdout.on("data", (chunk: string) => { stdout += chunk })
+    child.stderr.on("data", (chunk: string) => { stderr += chunk })
+    child.once("error", rejectEvidence)
+    child.once("exit", (code) => {
+      if (code !== 0) {
+        rejectEvidence(new Error(`LOCAL-G ${input.mode} process exited with ${code}: ${stderr.trim()}`))
+        return
+      }
+      try {
+        const line = stdout.trim().split(/\r?\n/u).at(-1)
+        if (line == null) throw new Error("LOCAL-G process emitted no evidence")
+        resolveEvidence(JSON.parse(line) as LocalProcessEvidenceV1)
+      } catch (error) {
+        rejectEvidence(error)
+      }
+    })
+  })
+}
+
+async function postgresUsage(): Promise<{ rowCount: number; relationBytes: number }> {
+  const pool = new Pool({ connectionString: postgresOptions().connectionString, max: 1 })
+  try {
+    const result = await pool.query<{ row_count: string; relation_bytes: string }>(`
+      SELECT
+        (
+          (SELECT count(*) FROM flowdoc_pdf_export_operations_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_lifecycle_heads_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_lifecycle_transitions_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_artifact_manifests_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_artifact_jobs_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_artifact_receipts_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_observability_events_v1)
+          + (SELECT count(*) FROM flowdoc_pdf_export_workflow_completions_v1)
+        )::text AS row_count,
+        (
+          pg_total_relation_size('flowdoc_pdf_export_operations_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_lifecycle_heads_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_lifecycle_transitions_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_artifact_manifests_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_artifact_jobs_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_artifact_receipts_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_observability_events_v1'::regclass)
+          + pg_total_relation_size('flowdoc_pdf_export_workflow_completions_v1'::regclass)
+        )::text AS relation_bytes
+    `)
+    return {
+      rowCount: Number(result.rows[0]!.row_count),
+      relationBytes: Number(result.rows[0]!.relation_bytes),
+    }
+  } finally {
+    await pool.end()
+  }
+}
+
+async function objectStoreUsage(prefix: string): Promise<{ objectCount: number; objectBytes: number }> {
+  const contentStore = await store(prefix)
+  const page = await contentStore.scanPage({
+    modifiedBefore: "9999-12-31T23:59:59.999Z",
+    maxScanCount: 64,
+    cursor: null,
+  })
+  if (page.status !== "ready" || page.truncated || page.nextCursor != null) {
+    throw new Error(`LOCAL-G object usage scan failed: ${JSON.stringify(page.issues)}`)
+  }
+  return {
+    objectCount: page.candidates.length,
+    objectBytes: page.candidates.reduce((total, candidate) => total + candidate.byteLength, 0),
+  }
 }
 
 function workerWorkflow(
@@ -310,6 +467,162 @@ localDescribe("PDF export LOCAL-C PostgreSQL and S3-compatible integration", () 
     }
   }, 120_000)
 
+  it("retains exact canonical download and no-work replay across two operating-system processes", async () => {
+    const token = `local-g-process-${randomBytes(32).toString("base64url")}`
+    const callerKey = `caller-key:local-g:process-restart:${runId}`
+    const prefix = `pdf-export-content-v1/${runId}/local-g-process/`
+    const first = await runLocalProcessEvidence({ mode: "execute", token, callerKey, prefix })
+    const replay = await runLocalProcessEvidence({ mode: "replay", token, callerKey, prefix })
+
+    expect(first.mounted).toEqual({
+      runtimeProfile: "local-integration",
+      localServerMounted: true,
+      defaultApplicationServerMounted: false,
+      listenerScope: "loopback-only",
+      workerStart: "dedicated-command",
+      remoteProviderCallsAllowed: false,
+      productionBinding: false,
+    })
+    expect(replay.mounted).toEqual(first.mounted)
+    expect(first.eligibility).toMatchObject({
+      status: "eligible",
+      documentId: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_ID,
+      documentRevision: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_DOCUMENT_REVISION,
+      lane: "canonical-evidence",
+    })
+    expect(first.admission).toMatchObject({ status: "created", export: { state: "pending" } })
+    expect(first.cycle).toMatchObject({
+      listedCount: 1,
+      invokedCount: 1,
+      results: [{ rendererExecuted: true, persistenceExecuted: true, status: "completed" }],
+    })
+    expect(replay.admission).toMatchObject({
+      status: "idempotent-replay",
+      export: {
+        operationId: first.admission.export.operationId,
+        state: "completed",
+      },
+    })
+    expect(replay.cycle).toMatchObject({ listedCount: 0, invokedCount: 0, results: [] })
+    expect(first.status).toMatchObject({
+      status: "found",
+      export: {
+        state: "completed",
+        terminalStatus: "completed",
+        pageCount: 13,
+        byteLength: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_BYTE_LENGTH,
+      },
+    })
+    expect(replay.status).toEqual(first.status)
+    expect(first.publicStatusKeys).toEqual([
+      "acceptedAt",
+      "artifactId",
+      "byteLength",
+      "documentId",
+      "documentRevision",
+      "exportRequestId",
+      "operationId",
+      "pageCount",
+      "state",
+      "stopReason",
+      "terminalStatus",
+      "updatedAt",
+    ])
+    expect(replay.publicStatusKeys).toEqual(first.publicStatusKeys)
+    expect(first.artifact).toEqual({
+      byteLength: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_BYTE_LENGTH,
+      sha256: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_SHA256,
+    })
+    expect(replay.artifact).toEqual(first.artifact)
+
+    const [database, objects] = await Promise.all([
+      postgresUsage(),
+      objectStoreUsage(prefix),
+    ])
+    expect(replay.cycle.invokedCount).toBe(0)
+    const readinessInput: FlowDocBackendPdfExportLocalReadinessInputV1 = {
+      runtime: {
+        runtimeProfile: "local-integration",
+        listenerScope: "loopback-only",
+        remoteProviderCallsAllowed: false,
+        defaultApplicationServerMounted: false,
+        productionBinding: false,
+        committedCredential: false,
+      },
+      execution: {
+        processCount: 2,
+        processRestartCount: 1,
+        rendererExecutionCount: first.cycle.results.filter((result) => result.rendererExecuted).length
+          + replay.cycle.results.filter((result) => result.rendererExecuted).length as 1,
+        persistenceExecutionCount: first.cycle.results.filter((result) => result.persistenceExecuted).length
+          + replay.cycle.results.filter((result) => result.persistenceExecuted).length as 1,
+        terminalReplayWithoutRender: true,
+      },
+      artifact: {
+        pageCount: 13,
+        byteLength: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_BYTE_LENGTH,
+        sha256: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_CANONICAL_EXPECTED_PDF_SHA256,
+      },
+      metrics: {
+        wallTimeMs: first.metrics.wallTimeMs + replay.metrics.wallTimeMs,
+        cpuTimeMs: first.metrics.cpuTimeMs + replay.metrics.cpuTimeMs,
+        peakRssBytes: Math.max(first.metrics.peakRssBytes, replay.metrics.peakRssBytes),
+        rssGrowthBytes: Math.max(first.metrics.rssGrowthBytes, replay.metrics.rssGrowthBytes),
+        databaseRowCount: database.rowCount,
+        databaseRelationBytes: database.relationBytes,
+        objectStoreObjectCount: objects.objectCount,
+        objectStoreBytes: objects.objectBytes,
+        httpRequestCount: first.metrics.httpRequestCount + replay.metrics.httpRequestCount,
+      },
+    }
+    const readiness = qualifyFlowDocBackendPdfExportLocalReadinessV1(readinessInput)
+    expect(readiness).toMatchObject({
+      status: "accepted",
+      issues: [],
+      contracts: { phase: "PDF-EXPORT-LOCAL-G", productionBinding: false },
+    })
+    process.stdout.write(`[PDF-EXPORT-LOCAL-G] ${JSON.stringify({
+      status: readiness.status,
+      metrics: readiness.metrics,
+      limits: readiness.limits,
+    })}\n`)
+  }, 180_000)
+
+  it("cancels an admitted HTTP operation before worker handoff without rendering or persistence", async () => {
+    const prefix = `pdf-export-content-v1/${runId}/local-g-cancel/`
+    const evidence = await runLocalProcessEvidence({
+      mode: "cancel-before-handoff",
+      token: `local-g-cancel-${randomBytes(32).toString("base64url")}`,
+      callerKey: `caller-key:local-g:cancel:${runId}`,
+      prefix,
+    })
+    expect(evidence.admission).toMatchObject({ status: "created", export: { state: "pending" } })
+    expect(evidence.cancellation).toMatchObject({ status: "applied", state: "cancelled" })
+    expect(evidence.cycle).toMatchObject({
+      listedCount: 1,
+      invokedCount: 1,
+      results: [{
+        operationId: evidence.admission.export.operationId,
+        status: "terminated",
+        rendererExecuted: false,
+        persistenceExecuted: false,
+      }],
+    })
+    expect(evidence.status).toMatchObject({
+      status: "found",
+      export: {
+        state: "cancelled",
+        terminalStatus: "cancelled",
+        stopReason: "cancelled-before-handoff",
+        pageCount: null,
+        byteLength: null,
+      },
+    })
+    expect(evidence.downloadStatus).toBe(409)
+    expect(evidence.artifact).toBeNull()
+    await expect(objectStoreUsage(prefix)).resolves.toEqual({ objectCount: 0, objectBytes: 0 })
+  }, 120_000)
+
   it("runs the complete V-B through V-F workflow and terminal-replays after provider restart", async () => {
     const fixture = createPdfExportWorkflowFixture({
       operationId: `operation:local-c:restart:${runId}`,
@@ -363,6 +676,78 @@ localDescribe("PDF export LOCAL-C PostgreSQL and S3-compatible integration", () 
       content: { sha256 },
     })
   }, 60_000)
+
+  it.each(["missing", "corrupt"] as const)(
+    "commits no terminal artifact metadata when actual S3 readback is %s",
+    async (fault) => {
+      const prefix = `pdf-export-content-v1/${runId}/local-g-readback-${fault}/`
+      const actualStore = await store(prefix)
+      const actualRepositories = await repositories()
+      const fixture = await createReadyPdfExportPersistenceFixture({
+        operationId: `operation:local-g:readback-${fault}:${runId}`,
+        lifecycleRepository: actualRepositories.lifecycleRepository,
+      })
+      const options = s3Options(prefix)
+      const rawS3 = new S3Client({
+        endpoint: options.endpoint,
+        region: options.region,
+        credentials: {
+          accessKeyId: options.accessKeyId,
+          secretAccessKey: options.secretAccessKey,
+        },
+        forcePathStyle: true,
+        maxAttempts: 2,
+      })
+      let faultApplied = false
+      try {
+        const faultedStore = {
+          source: actualStore.source,
+          async write(input: Parameters<typeof actualStore.write>[0]) {
+            const written = await actualStore.write(input)
+            if (written.content != null && !faultApplied) {
+              faultApplied = true
+              if (fault === "missing") {
+                await actualStore.delete({ storageKey: written.content.storageKey })
+              } else {
+                await rawS3.send(new PutObjectCommand({
+                  Bucket: options.bucket,
+                  Key: `${prefix}${written.content.storageKey}`,
+                  Body: new TextEncoder().encode("%PDF-1.7\ncorrupted LOCAL-G readback\n%%EOF\n"),
+                  ContentType: "application/pdf",
+                }))
+              }
+            }
+            return written
+          },
+          read: (input: Parameters<typeof actualStore.read>[0]) => actualStore.read(input),
+          scan: (input: Parameters<typeof actualStore.scan>[0]) => actualStore.scan(input),
+          delete: (input: Parameters<typeof actualStore.delete>[0]) => actualStore.delete(input),
+        }
+        const result = await persistFlowDocBackendPdfExportArtifactV1(pdfExportPersistenceInput({
+          fixture,
+          contentStore: faultedStore,
+          persistenceRepository: actualRepositories.persistenceRepository,
+        }))
+        expect(faultApplied).toBe(true)
+        expect(result).toMatchObject({
+          status: "blocked",
+          receipt: null,
+          orphanCandidateStorageKey: expect.stringMatching(/^pdf-export-v1\.sha256\./u),
+        })
+        const lookup = {
+          ...fixture.fixture.operation.scope,
+          operationId: fixture.fixture.operation.operationId,
+        }
+        await expect(actualRepositories.persistenceRepository.readByOperationId(lookup))
+          .resolves.toMatchObject({ status: "not-found", receipt: null })
+        await expect(actualRepositories.observabilityRepository.readTerminalWorkflow(lookup))
+          .resolves.toMatchObject({ status: "not-found", completion: null, events: [] })
+      } finally {
+        rawS3.destroy()
+      }
+    },
+    60_000,
+  )
 
   it("admits one caller-key owner across independent PostgreSQL pools", async () => {
     const firstRepositories = await repositories()

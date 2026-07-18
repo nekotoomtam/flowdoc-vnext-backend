@@ -167,8 +167,9 @@ Primary evidence:
 
 ## UNKNOWN
 
-- Final poll, batch, claim, retry, drain, and maintenance values after LOCAL-G
-  bounded-load evidence.
+- Final poll, batch, claim, retry, drain, and maintenance tuning for a future
+  product-document or sustained-load lane. LOCAL-G retains the current bounded
+  canonical values without claiming saturation evidence.
 - The first non-canonical product-document resolver accepted by LOCAL-E.
 - Production queue/wake-up, provider, telemetry, deployment, and operator
   policy.

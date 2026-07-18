@@ -110,6 +110,13 @@ Current slice:
   same-origin proxy; the browser receives no local credential, unsupported
   product documents are not substituted, and readiness/production remain
   closed in `../flowdoc-vnext-editor/docs/PDF_EXPORT_LOCAL_EDITOR_INTEGRATION.md`
+- PDF export LOCAL-G passes the canonical local readiness audit across two
+  operating-system processes, actual PostgreSQL 17.10 and pinned MinIO,
+  no-work terminal replay, HTTP cancellation, missing/corrupt readback,
+  digest drift, bounded cleanup, and a measured CPU/memory/time/database/object
+  envelope. Local qualification is accepted while product-document eligibility
+  and every production binding remain closed in
+  `docs/PDF_EXPORT_LOCAL_READINESS_AUDIT.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

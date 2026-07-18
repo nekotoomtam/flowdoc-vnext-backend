@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -196,6 +196,35 @@ describe("PDF export LOCAL-E composition", () => {
         documentRevision: 1,
         acceptedAt: "2026-07-18T10:00:00.000Z",
       })).resolves.toMatchObject({ status: "not-found" })
+    },
+    20_000,
+  )
+
+  ;(CANONICAL_AVAILABLE ? it : it.skip)(
+    "rejects canonical resource digest drift before admission or renderer creation",
+    async () => {
+      const reportRoot = mkdtempSync(join(tmpdir(), "flowdoc-pdf-local-g-resource-drift-"))
+      roots.push(reportRoot)
+      const assetsRoot = join(reportRoot, "assets")
+      mkdirSync(assetsRoot)
+      for (const fileName of [
+        "source_evidence.png",
+        "ocr_accuracy.png",
+        "native_extraction.png",
+        "latency_rounds.png",
+        "mapping_gap.png",
+      ]) copyFileSync(resolve(REPORT_ROOT, "assets", fileName), join(assetsRoot, fileName))
+      writeFileSync(join(assetsRoot, "source_evidence.png"), "LOCAL-G resource digest drift")
+
+      await expect(createFlowDocBackendPdfExportLocalCanonicalEvidenceV1({
+        coreRoot: CORE_ROOT,
+        reportRoot,
+        identity: {
+          tenantId: "tenant:flowdoc-pdf-local",
+          principalId: "principal:flowdoc-pdf-local-operator",
+          authenticationId: "authentication:pdf-local:test",
+        },
+      })).rejects.toThrow("canonical PDF evidence digest mismatch")
     },
     20_000,
   )
