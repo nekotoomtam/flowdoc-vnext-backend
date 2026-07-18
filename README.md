@@ -39,6 +39,71 @@ Current slice:
 - backend-owned submission route contract over core identity/status facts
 - artifact job execution that owns storage lifecycle and accepts an injected renderer
 - filesystem artifact byte store with manifest consistency checks
+- PDF export V-B wraps exact Core production admission in an immutable
+  backend operation and durably binds caller idempotency keys by tenant and
+  principal through in-memory and SQLite repository adapters; worker, terminal
+  receipt, auth, route, and production activation remain closed in
+  `docs/PDF_EXPORT_DURABLE_OPERATION_IDEMPOTENCY.md`
+- PDF export V-C adds a separate revisioned lifecycle head and atomic
+  transition journal with bounded claim/reclaim, attempts, exact replay,
+  deadline and three checkpoint-cancellation decisions, plus a process-local
+  shutdown-drain gate. Renderer execution, PDF bytes, terminal receipt,
+  cluster coordination, routes, auth, and activation remain closed in
+  `docs/PDF_EXPORT_LIFECYCLE_WORKER_CONTROL.md`
+- PDF export V-D binds the exact Core handoff, receipt, and render completion
+  to a qualified-candidate renderer SPI with bounded asynchronous cancellation
+  checkpoints and V-C before-render/before-persist transitions. It returns
+  validated bytes only in memory; concrete production renderer selection,
+  persistence, routes, auth, and activation remain closed in
+  `docs/PDF_EXPORT_RENDERER_ADAPTER_QUALIFICATION.md`
+- PDF export V-E publishes SHA-256-addressed PDF bytes atomically, verifies
+  physical bytes by readback, then CAS-projects the rendered Core manifest and
+  job in one SQLite transaction with terminal restart replay and bounded
+  orphan recovery. Production storage/provider selection, post-commit worker
+  finalization, observability, routes, auth, and activation remain closed in
+  `docs/PDF_EXPORT_DURABLE_ARTIFACT_PERSISTENCE.md`
+- PDF export V-F composes V-B through V-E into a restart-safe candidate,
+  atomically journals a closed privacy-safe Core event chain with terminal
+  workflow completion, and proves full SQLite recovery at every durable stage.
+  Production event delivery/retention, worker hosting, storage/provider and
+  renderer promotion, authenticated routes, deployment, and activation remain
+  closed in `docs/PDF_EXPORT_PRIVACY_OBSERVABILITY_QUALIFICATION.md`
+- PDF export V-G adds an unmounted concrete HTTP candidate for authenticated
+  request/status/cancel/download, derives tenant/principal only from injected
+  credentials, enforces authorization per action, redacts status, and returns
+  bytes only after terminal and physical verification. SQLite restart evidence
+  passes, but the production activation review is NO-GO in
+  `docs/PDF_EXPORT_AUTHENTICATED_ROUTE_ACTIVATION_REVIEW.md`
+- PDF export LOCAL-A keeps V-G unmounted and locks the next implementation lane
+  to dedicated loopback-only HTTP/worker entry points, local PostgreSQL and
+  S3-compatible storage adapters, canonical renderer evidence first, and later
+  Editor development-proxy integration. It activates no runtime or production
+  binding; the cross-repo lock lives in
+  `../flowdoc-vnext-core/docs/PDF_EXPORT_LOCAL_FIRST_ARCHITECTURE_LOCK.md`
+- PDF export LOCAL-B reuses the V-D generic renderer SPI, adds a local
+  controlled pilot adapter with trusted resource resolution, and retains exact
+  canonical 13-page bytes across 30 bounded checkpoints. It writes no storage,
+  starts no worker/server, and selects no production renderer in
+  `docs/PDF_EXPORT_LOCAL_RENDERER_ADAPTER.md`
+- PDF export LOCAL-C adds explicit loopback-only PostgreSQL metadata adapters
+  and an S3-compatible content-addressed byte store, pinned local Compose and
+  portable provider harnesses, versioned migration/setup, competing-connection
+  and restart/fault evidence, and resumable orphan enumeration. Worker hosting,
+  route mounting, Editor integration, and production binding remain closed in
+  `docs/PDF_EXPORT_LOCAL_POSTGRES_S3_ADAPTERS.md`
+- PDF export LOCAL-D adds bounded PostgreSQL due-work discovery, one-owner
+  execution with uncertain-commit reconciliation, expiry reclaim, stopped
+  lifecycle finalization, an explicit-start concurrency-one worker host,
+  graceful/forced drain, and bounded orphan-maintenance cadence. The dedicated
+  command remains fail-closed until a concrete composition factory is
+  selected; routes, Editor, and production remain closed in
+  `docs/PDF_EXPORT_LOCAL_DURABLE_WORKER.md`
+- PDF export LOCAL-E adds the concrete digest-pinned canonical resolver,
+  local credential/authorization composition, dedicated loopback-only HTTP
+  process, and in-checkout worker factory over PostgreSQL and S3-compatible
+  providers. Separate HTTP/worker connections pass the exact 13-page
+  request-to-download and no-render replay lane; Editor, readiness, and
+  production remain closed in `docs/PDF_EXPORT_LOCAL_HTTP_COMPOSITION.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the
@@ -115,8 +180,8 @@ Current slice:
 
 Not yet included:
 
-- auth or tenancy
-- database persistence
+- auth execution or production tenancy policy
+- production application database selection and deployment
 - queue/job workers
 - production durable composition storage, scheduler worker/queue, cleanup,
   quota enforcement, and routes

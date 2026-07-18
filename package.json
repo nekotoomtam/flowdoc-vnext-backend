@@ -13,13 +13,26 @@
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
-    "check": "npm run type-check && npm run test && npm run build"
+    "check": "npm run type-check && npm run test && npm run build",
+    "pdf-export-local:env": "tsx src/localPdfExport/pdfExportLocalEnv.ts",
+    "pdf-export-local:up": "docker compose --env-file .env.local -f docker-compose.pdf-export-local.yml up -d --wait",
+    "pdf-export-local:migrate": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalMigrate.ts",
+    "pdf-export-local:http": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalHttpCommand.ts",
+    "pdf-export-local:worker": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalWorkerCommand.ts",
+    "pdf-export-local:test:portable": "tsx src/localPdfExport/pdfExportLocalPortableEvidence.ts",
+    "pdf-export-local:down": "docker compose --env-file .env.local -f docker-compose.pdf-export-local.yml down",
+    "pdf-export-local:reset": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalReset.ts --confirm-reset-local"
   },
   "dependencies": {
-    "@flowdoc/vnext-core": "file:../flowdoc-vnext-core"
+    "@aws-sdk/client-s3": "^3.1090.0",
+    "@flowdoc/vnext-core": "file:../flowdoc-vnext-core",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
+    "@flowdoc/pdf-renderer-pilot": "file:../flowdoc-vnext-core/packages/pdf-renderer-pilot",
     "@types/node": "^26.0.1",
+    "@types/pg": "^8.20.0",
+    "embedded-postgres": "^17.10.0-beta.17",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
