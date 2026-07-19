@@ -3,7 +3,9 @@ import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 import {
   createVNextPdfExportHandoffV1,
+  createVNextPdfMeasuredDrawContractV1,
   type VNextPdfExportRendererInputV1,
+  type VNextPdfMeasuredDrawContractRequestV1,
 } from "@flowdoc/vnext-core"
 import {
   createFlowDocBackendLocalPdfRendererV1,
@@ -151,6 +153,60 @@ describe("PDF-EXPORT-LOCAL-B local renderer adapter", () => {
       fileWrites: false,
       storageWrites: false,
       concreteProductionRendererSelected: false,
+      productionBinding: false,
+    })
+  })
+
+  it("routes a bounded local measured-document contract through a fresh generic adapter", async () => {
+    const request = readJson<VNextPdfMeasuredDrawContractRequestV1>(
+      "fixtures/pdf-pilot-thai-one-page-request.v1.json",
+    )
+    const contract = createVNextPdfMeasuredDrawContractV1({
+      ...request,
+      pilotId: "pdf-export-realdoc-d-backend-route",
+      rendererProfileId: "flowdoc-local-measured-document-v1",
+    })
+    if (contract.status !== "consumable") throw new Error(JSON.stringify(contract.issues))
+    const rendererInput: VNextPdfExportRendererInputV1 = {
+      exportRequestId: "export:pdf-export-realdoc-d:backend-route",
+      artifactId: "artifact:pdf-export-realdoc-d:backend-route",
+      measuredDrawContract: contract,
+      sourceContractFingerprint: contract.fingerprint,
+      sourceContractContentFingerprint: contract.fingerprint,
+    }
+    const createRenderer = () => createFlowDocBackendLocalPdfRendererV1({
+      profile: "local-measured-document",
+      resourceResolver: readyResourceResolver(),
+      checkpointEveryPaintCommands: 2,
+    })
+    const checkpoints: number[][] = []
+    const render = async () => {
+      const current: number[] = []
+      checkpoints.push(current)
+      return await createRenderer().render({
+        rendererInput,
+        control: {
+          async checkpoint(checkpoint) {
+            current.push(checkpoint.paintCommandIndex)
+            return { status: "continue" }
+          },
+        },
+      })
+    }
+    const first = await render()
+    const restarted = await render()
+
+    expect(first.status).toBe("rendered")
+    expect(restarted.status).toBe("rendered")
+    if (first.status !== "rendered" || restarted.status !== "rendered") throw new Error("local measured renderer must pass")
+    expect(checkpoints).toEqual([[0, 2, 4], [0, 2, 4]])
+    expect(restarted.bytes).toEqual(first.bytes)
+    expect(restarted.renderEvidence).toEqual(first.renderEvidence)
+    expect(createRenderer().local).toMatchObject({
+      profile: "local-measured-document",
+      canonicalEvidenceOnly: false,
+      fileWrites: false,
+      storageWrites: false,
       productionBinding: false,
     })
   })

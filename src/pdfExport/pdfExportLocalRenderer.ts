@@ -14,6 +14,7 @@ export const FLOWDOC_BACKEND_LOCAL_PDF_RENDERER_DEFAULT_CHECKPOINT_INTERVAL = 64
 export type FlowDocBackendLocalPdfRendererProfileV1 =
   | "thai-one-page"
   | "canonical-full-document"
+  | "local-measured-document"
 
 export interface FlowDocBackendLocalPdfRendererIssueV1 {
   code: string
@@ -113,6 +114,10 @@ interface LocalPilotModuleV1 {
     options: LocalPilotRenderOptionsV1,
   ): Promise<LocalPilotControlledResultV1>
   renderFlowDocThaiOnePagePdfPilotControlled(
+    input: LocalPilotRenderInputV1,
+    options: LocalPilotRenderOptionsV1,
+  ): Promise<LocalPilotControlledResultV1>
+  renderFlowDocLocalMeasuredDocumentPdfControlled(
     input: LocalPilotRenderInputV1,
     options: LocalPilotRenderOptionsV1,
   ): Promise<LocalPilotControlledResultV1>
@@ -247,7 +252,9 @@ export function createFlowDocBackendLocalPdfRendererV1(
       }
       const result = options.profile === "canonical-full-document"
         ? await pilot.renderFlowDocCanonicalFullDocumentPdfPilotControlled(renderInput, renderOptions)
-        : await pilot.renderFlowDocThaiOnePagePdfPilotControlled(renderInput, renderOptions)
+        : options.profile === "local-measured-document"
+          ? await pilot.renderFlowDocLocalMeasuredDocumentPdfControlled(renderInput, renderOptions)
+          : await pilot.renderFlowDocThaiOnePagePdfPilotControlled(renderInput, renderOptions)
       if (result.status === "cancelled") return {
         status: "cancelled",
         bytes: null,

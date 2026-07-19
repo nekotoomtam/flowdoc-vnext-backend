@@ -116,3 +116,12 @@ Follow-up `PDF-EXPORT-LOCAL-C` accepts local PostgreSQL metadata and
 S3-compatible byte-provider adapters in
 `docs/PDF_EXPORT_LOCAL_POSTGRES_S3_ADAPTERS.md`. Worker hosting, route mounting,
 Editor integration, and production selection remain later phases.
+
+`PDF-EXPORT-REALDOC-D` adds the separate `local-measured-document` profile to
+this same adapter without changing the canonical profile. The profile routes a
+bounded Core measured contract to the controlled local renderer, recreates the
+adapter with byte-identical output, and retains cooperative cancellation with
+no file or storage writes. Exact 69C source resolution, measurement, and font
+subsetting remain Core/local verifier responsibilities; persisted Backend
+operation and artifact lifecycle remain deferred to REALDOC-E. Production
+binding remains false.
