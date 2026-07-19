@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.4` local admitted-generation artifact lifecycle
-accepted after the E.3 bounded admission. Default route activation, durable
-generation storage, Editor pre-test, and production remain inactive and
-NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.0` Editor workspace product contract accepted
+after the E.4 local artifact lifecycle. No Library list route, Editor runtime,
+durable generation storage, or production behavior is activated and production
+remains NO-GO.
 
 ## Direction
 
@@ -185,6 +185,33 @@ Route replay does not rematerialize. Cancellation before worker persists no
 bytes. Evidence is content-free in
 `src/tests/fixtures/pdf-export-realdoc-e4-evidence.v1.json`.
 
+## E.5.0 Product Contract Handoff
+
+The accepted Editor product contract lives in
+`../flowdoc-vnext-editor/docs/REALDOC_DOCUMENT_WORKSPACE_PRODUCT_CONTRACT.md`.
+A local Document Library opens one workspace with URL-backed Design and
+Preview views. Design owns Structure draft authoring. Preview owns temporary
+generated-Form or mapped-JSON test input and reuses Backend generation and
+artifact authority.
+
+E.5.1 must add a bounded Library read model instead of returning raw package
+records. The future local `GET /documents` list boundary returns authoring
+document identity, title, revision, update time, draft/published summaries, and
+derived Design/Preview capabilities. It does not return package graphs, test
+values, canonical snapshots, generated instances, or artifact bytes. Cursor
+and limit policy must be defined and tested in the E.5.1 Backend response
+contract before route mounting.
+
+There is no multi-user authorization system yet. The first list is explicitly
+local-workspace evidence and cannot claim secure per-user scoping. A future
+authenticated composition must inject tenant/workspace/principal scope before
+the repository query; browser query parameters never select an owner.
+
+Published Preview continues through E.3/E.4. Draft Preview later requires a
+separate immutable local draft-snapshot identity and must not enter E.3 while
+claiming to be a Published Structure Version. E.5.0 changes no repository,
+route, composition, request, or runtime.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -208,7 +235,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.3 adds bounded local DocGen admission and exact identity pins. Accepted.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
   Accepted.
-- E.5 exposes the same contract to Editor pre-test.
+- E.5.0 locks the Library/workspace/generated-Form/Preview contract. Accepted.
+- E.5.1 through E.5.9 add the Library, workspace, input projection, Form/JSON
+  state, Published and Draft Preview, lifecycle UX, and parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -257,6 +286,7 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5` exposes Editor pre-test over the same E.3 admission and
-E.4 artifact identities without making imported values authored Structure
-content. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.1` adds the bounded local Document Library repository
+query, `GET /documents` list boundary, and first Library view without claiming
+multi-user authorization or making imported values authored Structure content.
+Production remains NO-GO.

@@ -89,8 +89,11 @@ document eligible. REALDOC-E.3 now admits one exact Published Structure Version
 plus caller-owned data through a bounded optional local route and retains a
 protected canonical record. REALDOC-E.4 now binds that record to
 source-neutral resolution and the existing local artifact lifecycle without
-changing the default composition. REALDOC-E.5 must expose the accepted
-admission and artifact lifecycle without canonical fixture substitution.
+changing the default composition. REALDOC-E.5.0 now locks the local Library,
+shared Design/Preview workspace, and generated-Form boundary without runtime
+activation. E.5.1 next adds the bounded local Library read model; later E.5
+phases expose the accepted admission and artifact lifecycle without canonical
+fixture substitution.
 Editor test import and an external API-shaped caller must still
 converge before resolution. Production provider selection remains a separate
 deferred review. See `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`.

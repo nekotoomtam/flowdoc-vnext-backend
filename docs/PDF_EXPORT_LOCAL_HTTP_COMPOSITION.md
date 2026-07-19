@@ -209,5 +209,7 @@ body and 1 MiB adapted-payload ceiling, and stop at a protected
 materialization-ready canonical record. REALDOC-E.4 now binds that record to
 the existing operation/worker/artifact lifecycle through a separate optional
 local materializer. The default HTTP composition remains canonical-evidence
-only. REALDOC-E.5 remains responsible for Editor pre-test over that same
+only. REALDOC-E.5.0 now locks the local Library and Design/Preview workspace
+product contract without mounting anything. E.5.1 next owns the bounded local
+Library query and first view; later E.5 phases expose pre-test over the same
 admission and artifact path.
