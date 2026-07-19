@@ -1,7 +1,8 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.0` Backend ownership lock. No runtime change;
-production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.0` Backend ownership lock with
+`PDF-EXPORT-REALDOC-E.1` Core generation-input contract accepted. No Backend
+runtime change; production remains NO-GO.
 
 ## Direction
 
@@ -60,6 +61,28 @@ Mapping diagnostics may report paths, codes, and content-free fingerprints.
 They must not persist source text, raw payloads, credentials, or PDF bytes into
 privacy-safe lifecycle events.
 
+## E.1 Accepted Core Input
+
+Core now exposes one strict, source-neutral planning boundary for both input
+families. Backend will later construct that request only after trusted
+Published Structure, data-contract, instance, payload, and mapping-profile
+admission:
+
+- direct canonical snapshots produce `runtime-validation-required`;
+- adapted payload descriptors plus an exact named-adapter or declarative
+  mapping profile produce `mapping-required`; and
+- both results remain content-free and stop before mapping, runtime value
+  validation, materialization, resolution, rendering, or artifact creation.
+
+Backend retains or streams the exact raw payload bytes. Core receives their
+id, media type, byte length, and SHA-256 descriptor, not the raw JSON. Backend
+must verify the mapping profile owner and target data-contract pins before the
+future E.2 runtime executes it.
+
+E.1 adds no request parser, route, repository, worker, provider, payload
+retention policy, or product-document eligibility. The existing local
+document-pin route remains unchanged.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -76,7 +99,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Phase Order
 
-- E.1 defines the published-Structure generation input and mapping contract.
+- E.1 accepts the published-Structure generation input and mapping identity
+  contract in Core without Backend runtime activation.
 - E.2 accepts runtime mapping and direct/adapted input parity.
 - E.3 adds bounded local DocGen admission and exact identity pins.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
@@ -111,5 +135,5 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.1` Published Structure generation input and mapping
-contract. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.2` runtime mapping, validation, content-free diagnostics,
+and direct/adapted parity. Production remains NO-GO.

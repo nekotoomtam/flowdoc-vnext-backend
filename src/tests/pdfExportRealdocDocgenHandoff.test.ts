@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 const read = (relativePath: string): string => readFileSync(new URL(relativePath, import.meta.url), "utf8")
 
-describe("PDF-EXPORT-REALDOC-E.0 Backend DocGen handoff", () => {
+describe("PDF-EXPORT-REALDOC-E.0/E.1 Backend DocGen handoff", () => {
   it("separates Published Structure admission from caller-owned data", () => {
     const doc = read("../../docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md")
 
@@ -11,6 +11,7 @@ describe("PDF-EXPORT-REALDOC-E.0 Backend DocGen handoff", () => {
       "## Direction",
       "## Backend Ownership",
       "## Input Families",
+      "## E.1 Accepted Core Input",
       "## Existing Local Lane",
       "## Phase Order",
       "## Explicitly Not Changed",
@@ -23,6 +24,11 @@ describe("PDF-EXPORT-REALDOC-E.0 Backend DocGen handoff", () => {
     expect(doc).toMatch(/direct canonical Data Snapshot values/)
     expect(doc).toMatch(/adapted payload values/)
     expect(doc).toMatch(/Editor pre-test and external API route must converge/)
+    expect(doc).toContain("`runtime-validation-required`")
+    expect(doc).toContain("`mapping-required`")
+    expect(doc).toMatch(/Core receives their\s+id, media type, byte length, and SHA-256 descriptor, not the raw JSON/)
+    expect(doc).toMatch(/E\.1 adds no request parser, route, repository, worker, provider/)
+    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.2` runtime mapping")
   })
 
   it("keeps the accepted local composition canonical-only", () => {
@@ -35,5 +41,6 @@ describe("PDF-EXPORT-REALDOC-E.0 Backend DocGen handoff", () => {
     expect(composition).toContain("canonicalEvidenceOnly: true")
     expect(composition).toContain("productionBinding: false")
     expect(localCompositionDoc).not.toContain("eligible Editor lifecycle")
+    expect(composition).not.toContain("mappingProfile")
   })
 })
