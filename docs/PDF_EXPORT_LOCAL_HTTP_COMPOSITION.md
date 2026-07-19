@@ -210,6 +210,8 @@ materialization-ready canonical record. REALDOC-E.4 now binds that record to
 the existing operation/worker/artifact lifecycle through a separate optional
 local materializer. The default HTTP composition remains canonical-evidence
 only. REALDOC-E.5.0 now locks the local Library and Design/Preview workspace
-product contract without mounting anything. E.5.1 next owns the bounded local
-Library query and first view; later E.5 phases expose pre-test over the same
-admission and artifact path.
+product contract without mounting anything. REALDOC-E.5.1 now mounts a separate
+bounded metadata-only `GET /documents` route in the default local Backend used
+by the Editor. It does not widen this PDF composition or expose DocGen values.
+E.5.2 next adds workspace Design/Preview navigation; later E.5 phases expose
+pre-test over the same admission and artifact path.

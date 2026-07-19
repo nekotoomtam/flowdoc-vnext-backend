@@ -111,6 +111,38 @@ describe("backend HTTP server", () => {
       },
     })
 
+    const libraryResponse = await fetch(`${baseUrl}/documents?limit=2`)
+    expect(libraryResponse.status).toBe(200)
+    const libraryPage = await libraryResponse.json() as {
+      items: Array<{ documentId: string }>
+      nextCursor: string | null
+    }
+    expect(libraryPage.items.map((item) => item.documentId)).toEqual([
+      REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,
+      PRODUCT_REPORT_BASELINE_DOCUMENT_ID,
+    ])
+    expect(libraryPage.nextCursor).not.toBeNull()
+    expect(JSON.stringify(libraryPage)).not.toContain("packageValue")
+
+    const nextLibraryResponse = await fetch(
+      `${baseUrl}/documents?limit=2&cursor=${encodeURIComponent(libraryPage.nextCursor ?? "")}`,
+    )
+    await expect(nextLibraryResponse.json()).resolves.toMatchObject({
+      items: [
+        { documentId: PRODUCT_REPORT_DOCUMENT_ID },
+        { documentId: PRODUCT_REPORT_MINIMAL_DOCUMENT_ID },
+      ],
+      nextCursor: null,
+      status: "ready",
+    })
+
+    const invalidLibraryResponse = await fetch(`${baseUrl}/documents?limit=101`)
+    expect(invalidLibraryResponse.status).toBe(400)
+    await expect(invalidLibraryResponse.json()).resolves.toMatchObject({
+      issues: [{ code: "invalid-limit", path: "limit" }],
+      status: "invalid-request",
+    })
+
     await expect(fetch(`${baseUrl}/documents/${REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID}`)
       .then((response) => response.json())).resolves.toMatchObject({
         documentId: REORDER_BLOCKED_TARGET_QA_DOCUMENT_ID,

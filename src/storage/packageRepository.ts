@@ -45,6 +45,21 @@ export interface BackendPackageSeedRecord {
   updatedAt: string
 }
 
+export interface BackendPackageListCursor {
+  documentId: string
+  updatedAt: string
+}
+
+export interface BackendPackageListRequest {
+  after: BackendPackageListCursor | null
+  limit: number
+}
+
+export interface BackendPackageListResult {
+  hasMore: boolean
+  records: BackendPackageRecord[]
+}
+
 export interface BackendMigrationSourceSnapshot {
   documentId: string
   packageValue: FlowDocPackageV2DocumentVNext
@@ -127,6 +142,7 @@ export type BackendPackageMigrationWriteResult =
     }
 
 export interface BackendPackageRepository {
+  list(request: BackendPackageListRequest): Promise<BackendPackageListResult>
   migrate(request: BackendPackageMigrationWriteRequest): Promise<BackendPackageMigrationWriteResult>
   read(documentId: string): Promise<BackendPackageRecord | null>
   readMigrationReceipt(documentId: string, requestId: string): Promise<BackendMigrationReceipt | null>
@@ -279,6 +295,30 @@ export function createInMemoryPackageRepository(
   })
 
   return {
+    async list(request) {
+      if (!Number.isInteger(request.limit) || request.limit < 1 || request.limit > 100) {
+        throw new RangeError("package list limit must be an integer from 1 through 100")
+      }
+
+      const ordered = [...records.values()]
+        .sort((left, right) => (
+          right.updatedAt.localeCompare(left.updatedAt)
+          || left.documentId.localeCompare(right.documentId)
+        ))
+        .filter((record) => request.after == null
+          || record.updatedAt < request.after.updatedAt
+          || (
+            record.updatedAt === request.after.updatedAt
+            && record.documentId > request.after.documentId
+          ))
+      const page = ordered.slice(0, request.limit + 1)
+
+      return {
+        hasMore: page.length > request.limit,
+        records: page.slice(0, request.limit).map(cloneRecord),
+      }
+    },
+
     async read(documentId) {
       const record = records.get(documentId)
       return record ? cloneRecord(record) : null

@@ -91,7 +91,8 @@ protected canonical record. REALDOC-E.4 now binds that record to
 source-neutral resolution and the existing local artifact lifecycle without
 changing the default composition. REALDOC-E.5.0 now locks the local Library,
 shared Design/Preview workspace, and generated-Form boundary without runtime
-activation. E.5.1 next adds the bounded local Library read model; later E.5
+activation. REALDOC-E.5.1 now adds the bounded local Library read model and
+metadata route without changing this readiness envelope; later E.5
 phases expose the accepted admission and artifact lifecycle without canonical
 fixture substitution.
 Editor test import and an external API-shaped caller must still

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 const read = (relativePath: string): string => readFileSync(new URL(relativePath, import.meta.url), "utf8")
 
-describe("PDF-EXPORT-REALDOC-E.0-E.5.0 Backend DocGen handoff", () => {
+describe("PDF-EXPORT-REALDOC-E.0-E.5.1 Backend DocGen handoff", () => {
   it("separates Published Structure admission from caller-owned data", () => {
     const doc = read("../../docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md")
 
@@ -16,6 +16,7 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.0 Backend DocGen handoff", () => {
       "## E.3 Accepted Local Admission",
       "## E.4 Accepted Artifact Binding",
       "## E.5.0 Product Contract Handoff",
+      "## E.5.1 Local Library Handoff",
       "## Existing Local Lane",
       "## Phase Order",
       "## Explicitly Not Changed",
@@ -42,9 +43,9 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.0 Backend DocGen handoff", () => {
     expect(doc).toMatch(/adapted JSON text is\s+separately capped at 1 MiB/)
     expect(doc).toMatch(/Raw adapted JSON is not retained/)
     expect(doc).toContain("E.4 adds `createFlowDocBackendDocGenLocalArtifactBindingV1(...)`")
-    expect(doc).toContain("future local `GET /documents` list boundary")
+    expect(doc).toContain("local `GET /documents` list boundary")
     expect(doc).toMatch(/cannot claim secure per-user scoping/)
-    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.5.1` adds the bounded local Document Library")
+    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.5.2` adds the shared workspace header")
   })
 
   it("keeps the accepted local composition canonical-only", () => {

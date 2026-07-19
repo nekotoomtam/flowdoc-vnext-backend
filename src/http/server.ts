@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { parseBackendMutationRequest, type BackendMutationResultEnvelope } from "../contracts/mutation.js"
 import { parseBackendMigrationRequest, type BackendMigrationResultEnvelope } from "../contracts/migration.js"
 import { createBackendVersionCapabilityEnvelope } from "../contracts/versionCapability.js"
+import { readBackendDocumentLibrary } from "../service/documentLibraryService.js"
 import { executeBackendMutation } from "../service/mutationService.js"
 import { executeBackendMigration } from "../service/migrationService.js"
 import type { BackendPackageRepository } from "../storage/packageRepository.js"
@@ -89,6 +90,21 @@ export function createFlowDocBackendServer(options: CreateFlowDocBackendServerOp
 
     if (request.method === "GET" && url.pathname === "/capabilities/versions") {
       writeJson(response, 200, createBackendVersionCapabilityEnvelope())
+      return
+    }
+
+    if (request.method === "GET" && url.pathname === "/documents") {
+      const result = await readBackendDocumentLibrary({
+        cursor: url.searchParams.get("cursor"),
+        limit: url.searchParams.get("limit"),
+        repository: options.repository,
+      })
+      if (result.status === "invalid-request") {
+        writeJson(response, 400, result)
+        return
+      }
+
+      writeJson(response, 200, result.page)
       return
     }
 

@@ -1,9 +1,8 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.0` Editor workspace product contract accepted
-after the E.4 local artifact lifecycle. No Library list route, Editor runtime,
-durable generation storage, or production behavior is activated and production
-remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.1` bounded local Library read boundary and
+Editor Library accepted after the E.5.0 product contract. Durable generation
+storage and production behavior remain inactive; production remains NO-GO.
 
 ## Direction
 
@@ -194,13 +193,13 @@ Preview views. Design owns Structure draft authoring. Preview owns temporary
 generated-Form or mapped-JSON test input and reuses Backend generation and
 artifact authority.
 
-E.5.1 must add a bounded Library read model instead of returning raw package
-records. The future local `GET /documents` list boundary returns authoring
+E.5.1 adds a bounded Library read model instead of returning raw package
+records. The local `GET /documents` list boundary returns authoring
 document identity, title, revision, update time, draft/published summaries, and
 derived Design/Preview capabilities. It does not return package graphs, test
 values, canonical snapshots, generated instances, or artifact bytes. Cursor
 and limit policy must be defined and tested in the E.5.1 Backend response
-contract before route mounting.
+contract at the mounted local development route.
 
 There is no multi-user authorization system yet. The first list is explicitly
 local-workspace evidence and cannot claim secure per-user scoping. A future
@@ -211,6 +210,26 @@ Published Preview continues through E.3/E.4. Draft Preview later requires a
 separate immutable local draft-snapshot identity and must not enter E.3 while
 claiming to be a Published Structure Version. E.5.0 changes no repository,
 route, composition, request, or runtime.
+
+## E.5.1 Local Library Handoff
+
+The in-memory package repository now exposes a bounded keyset list ordered by
+`updatedAt` descending and `documentId` ascending. `GET /documents` accepts an
+optional opaque cursor and a limit from 1 through 100, defaulting to 24. Invalid
+limits or cursors return a content-free `400 invalid-request` response.
+
+The version-1 response projects only Library metadata and derived capability
+states. It excludes raw package graphs, field registries, payloads, canonical
+snapshots, generation instances, measured contracts, artifact records, and PDF
+bytes. Existing V2/V3 fixtures honestly report `migration-required`, Published
+state is `unavailable`, and Preview remains unavailable. The route declares
+`local-workspace`, `local-development`, and `authorization: not-configured`;
+it does not claim secure user or tenant scope.
+
+This endpoint is mounted in the existing local Backend server used by the
+Editor. It does not change DocGen admission, PDF routes, renderer, worker,
+storage providers, or production composition. Retained contract and HTTP tests
+cover ordering, pagination, invalid input, and content exclusion.
 
 ## Existing Local Lane
 
@@ -236,13 +255,14 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
   Accepted.
 - E.5.0 locks the Library/workspace/generated-Form/Preview contract. Accepted.
-- E.5.1 through E.5.9 add the Library, workspace, input projection, Form/JSON
+- E.5.1 adds the bounded local Library query, route, and Editor view. Accepted.
+- E.5.2 through E.5.9 add the workspace, input projection, Form/JSON
   state, Published and Draft Preview, lifecycle UX, and parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
 
-- no default application route, local command, or automatic listener change;
+- no DocGen or PDF route, local command, or automatic worker-listener change;
 - no existing PDF request parser, eligibility lane, resolver, renderer, worker,
   durable repository, provider, or environment change;
 - no 69C mapping-profile/asset registry is mounted by default;
@@ -286,7 +306,6 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.1` adds the bounded local Document Library repository
-query, `GET /documents` list boundary, and first Library view without claiming
-multi-user authorization or making imported values authored Structure content.
+`PDF-EXPORT-REALDOC-E.5.2` adds the shared workspace header and URL-backed
+Design/Preview tabs without activating generated input or Preview execution.
 Production remains NO-GO.
