@@ -20,17 +20,18 @@
     "pdf-export-local:http": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalHttpCommand.ts",
     "pdf-export-local:worker": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalWorkerCommand.ts",
     "pdf-export-local:test:portable": "tsx src/localPdfExport/pdfExportLocalPortableEvidence.ts",
+    "pdf-export-realdoc-e4:verify": "tsx src/localPdfExport/pdfExportRealdocE4Evidence.ts",
     "pdf-export-local:down": "docker compose --env-file .env.local -f docker-compose.pdf-export-local.yml down",
     "pdf-export-local:reset": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalReset.ts --confirm-reset-local"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
+    "@flowdoc/pdf-renderer-pilot": "file:../flowdoc-vnext-core/packages/pdf-renderer-pilot",
     "@flowdoc/vnext-core": "file:../flowdoc-vnext-core",
     "pg": "^8.22.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@flowdoc/pdf-renderer-pilot": "file:../flowdoc-vnext-core/packages/pdf-renderer-pilot",
     "@types/node": "^26.0.1",
     "@types/pg": "^8.20.0",
     "embedded-postgres": "^17.10.0-beta.17",

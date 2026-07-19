@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.3` bounded local Backend DocGen admission
-accepted after the E.0 ownership lock, E.1 generation input, and E.2 Core
-mapping/validation runtime. Materialization, artifact execution, default route
-activation, and production remain inactive and NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.4` local admitted-generation artifact lifecycle
+accepted after the E.3 bounded admission. Default route activation, durable
+generation storage, Editor pre-test, and production remain inactive and
+NO-GO.
 
 ## Direction
 
@@ -152,6 +152,39 @@ admission. It performs no materialization, resolution, measurement, pagination,
 worker enqueue, renderer call, storage write, artifact projection, status
 lifecycle, or download.
 
+## E.4 Accepted Artifact Binding
+
+E.4 adds `createFlowDocBackendDocGenLocalArtifactBindingV1(...)`. The binding
+looks up a protected E.3 record by credential-scoped `instanceId`, requires the
+exact revision, and revalidates the record, receipt, canonical input, and asset
+fingerprints before materialization. Trusted asset bytes are reread through
+the digest-verifying registry; raw adapted JSON is never retained or reread.
+
+The document-specific materializer is injected behind a generic Backend SPI.
+The accepted UAT implementation invokes Core's local source-neutral canonical
+resolver and measured runtime through a bounded subprocess. This keeps UAT
+semantics in Core and prevents Backend from compiling or duplicating the UAT
+layout implementation.
+
+The resulting source identity binds the protected record fingerprint,
+canonical input fingerprint, materializer identity, measured contract, and
+digest-bound resources. Changed canonical data therefore cannot replay stale
+artifact bytes even when a materializer emits the same synthetic contract in
+a test.
+
+The existing `/pdf-exports` route accepts the E.3 instance id/revision and
+creates the existing immutable operation. Existing worker claims,
+cooperative cancellation, retry-capable lifecycle, content-addressed
+persistence, redacted status, terminal replay, physical byte verification, and
+download are reused without a parallel DocGen artifact state machine.
+
+The retained 69C evidence passes with 10 requirements, 7 screenshots, and a
+10-page 1,417,544-byte PDF whose SHA-256 is
+`61f84cbd503260faf9ff60e303d7053fb09b5ef1b24cb720fc54e0bb24262d0a`.
+Route replay does not rematerialize. Cancellation before worker persists no
+bytes. Evidence is content-free in
+`src/tests/fixtures/pdf-export-realdoc-e4-evidence.v1.json`.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -174,6 +207,7 @@ the DocGen admission/resolution owner before reusing those pieces.
   without Backend route activation.
 - E.3 adds bounded local DocGen admission and exact identity pins. Accepted.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
+  Accepted.
 - E.5 exposes the same contract to Editor pre-test.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
@@ -182,7 +216,7 @@ the DocGen admission/resolution owner before reusing those pieces.
 - no default application route, local command, or automatic listener change;
 - no existing PDF request parser, eligibility lane, resolver, renderer, worker,
   durable repository, provider, or environment change;
-- no 69C mapping-profile/asset registry is mounted yet;
+- no 69C mapping-profile/asset registry is mounted by default;
 - no 69C source bytes or user path copied into Backend;
 - no production identity, tenancy, provider, deployment, or activation; and
 - no claim that arbitrary generic repeat/conditional book composition is
@@ -196,15 +230,21 @@ the DocGen admission/resolution owner before reusing those pieces.
   admission.
 - Strict public receipts contain no raw payload or canonical business values.
 - Existing PDF routes and local command composition remain unchanged.
+- One admitted 69C protected record completes the existing local artifact
+  lifecycle and verified download without fixture substitution.
 
 ## RISK
 
 - Reusing the current document-pin request shape for DocGen would hide the
   Published Structure, mapping, payload, and Data Snapshot identities.
-- The protected repository is process-local; restart durability begins only
-  when E.4 binds admission to the existing artifact lifecycle.
+- The protected generation repository remains process-local; artifact
+  persistence is durable-capable but fresh-process generation reconstruction
+  remains E.6 evidence.
 - Running source mapping in the browser would still create a second resolver
   and make external API behavior diverge from pre-test.
+- Rendered REALDOC-D/E.4 continuation pages retain a renderer-pilot defect that
+  can hide the header and the leading `Pa` of the footer label; fix this as a
+  renderer correctness task without changing DocGen identity semantics.
 - The accepted Render API and variable/data mini-lanes in Core include
   metadata-only evidence that must not be mistaken for runtime validation.
 
@@ -217,6 +257,6 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.4` binds one admitted 69C generation record to
-materialization, resolution, and the existing local worker/artifact lifecycle
-without fixture substitution. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5` exposes Editor pre-test over the same E.3 admission and
+E.4 artifact identities without making imported values authored Structure
+content. Production remains NO-GO.

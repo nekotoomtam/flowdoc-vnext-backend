@@ -58,6 +58,8 @@ describe("PDF export REALDOC-E.3 local DocGen admission", () => {
     expect(record?.canonicalInput.collectionSnapshots[0]
       ?.collections["report.items"]?.items[0]?.values.name).toBe("Private item")
     expect(record?.idempotency.callerKey).toBe(DOCGEN_LOCAL_IDEMPOTENCY_KEY)
+    await expect(fixture.repository.readByInstanceId(result.receipt.instance.instanceId))
+      .resolves.toEqual(record)
   })
 
   it("uses one trusted mapper, replays without rerunning it, and retains no raw payload", async () => {
@@ -223,6 +225,17 @@ describe("PDF export REALDOC-E.3 local DocGen admission", () => {
       version: 1,
       images: { [asset.definition.id]: asset.definition },
     })).resolves.toMatchObject({ status: "ready", verifiedByteCount: bytes.byteLength })
+    const firstRead = await copiedRegistry.resolve({
+      version: 1,
+      images: { [asset.definition.id]: asset.definition },
+    })
+    expect(firstRead).toMatchObject({ status: "ready", assets: [{ definition: asset.definition }] })
+    if (firstRead.status !== "ready") throw new Error("trusted asset read failed")
+    firstRead.assets[0]!.bytes[0] = 77
+    await expect(copiedRegistry.resolve({
+      version: 1,
+      images: { [asset.definition.id]: asset.definition },
+    })).resolves.toMatchObject({ status: "ready", assets: [{ bytes }] })
 
     const assets = { version: 1 as const, images: { [asset.definition.id]: asset.definition } }
     const fixture = createDocGenLocalAdmissionFixture({

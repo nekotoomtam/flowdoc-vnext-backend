@@ -1,0 +1,47 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.4",
+  "status": "accepted",
+  "source": {
+    "sourceBundleFingerprint": "sha256:46fac437de79e9b5b044345ca97433535245bf53b1764d5df4b01e25279096eb",
+    "adapterBundleFingerprint": "sha256:c4a552188ef80f6d55e9856266f271f445c354740c383ba03bc6dedf9aa021b7",
+    "selectedImageCanonicalDigest": "dd7f125503a7002c184ae74c9fe517ac5d563e294eb0f99e1df7676d328db443",
+    "requirementCount": 10,
+    "screenshotCount": 7
+  },
+  "admission": {
+    "lane": "direct",
+    "instanceId": "docgen-instance:18f448eac63c1ad90e93c3508969655ac342bd8892835f94dcbbb8767c503483",
+    "instanceRevision": 0,
+    "canonicalInputFingerprint": "sha256:35dd81bddcc99f6e96046e653c94adda8a1c86697d266f9d994717bc71c60537",
+    "protectedRecordFingerprint": "sha256:100d65bb223ec83b2fa18690bc6c77042dc1bd6c6f7829b9055085f2e0cefa6c",
+    "rawPayloadRetained": false
+  },
+  "artifactIdentity": {
+    "documentFingerprint": "sha256:91c465ff8f58ab8c42c03313091f161edbce3a5a2738d53eacb7a23125f65f5f",
+    "requestFingerprint": "sha256:ed52a4d76601fb18e17220eea96ed4dcd7cf20d24216d243721f1af97154123e",
+    "measuredContractFingerprint": "sha256:af0c08b0d383f25b6424e0642cc44503590f825cf506256f72c9968084445571"
+  },
+  "artifact": {
+    "pageCount": 10,
+    "byteLength": 1417544,
+    "sha256": "61f84cbd503260faf9ff60e303d7053fb09b5ef1b24cb720fc54e0bb24262d0a",
+    "verifiedDownload": true
+  },
+  "lifecycle": {
+    "routeReplay": true,
+    "workerWorkflow": "completed",
+    "persistence": "retained",
+    "status": "completed",
+    "cancellationBeforeWorker": true,
+    "cancelledBytesPersisted": false
+  },
+  "contracts": {
+    "protectedCanonicalRecordOnly": true,
+    "rawPayloadRead": false,
+    "existingArtifactLifecycleReused": true,
+    "defaultApplicationServerMounted": false,
+    "durableGenerationPersistence": false,
+    "productionBinding": false
+  }
+}

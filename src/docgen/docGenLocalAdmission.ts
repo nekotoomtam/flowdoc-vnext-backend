@@ -102,9 +102,16 @@ export interface FlowDocBackendDocGenAssetAdmissionBlockedV1 {
   issues: FlowDocBackendDocGenLocalAdmissionIssueV1[]
 }
 
+export type FlowDocBackendDocGenAssetResolutionV1 =
+  | (FlowDocBackendDocGenAssetAdmissionReadyV1 & { assets: FlowDocBackendDocGenTrustedAssetBytesV1[] })
+  | (FlowDocBackendDocGenAssetAdmissionBlockedV1 & { assets: null })
+
 export interface FlowDocBackendDocGenTrustedAssetRegistryV1 {
   verify(registry: ImageAssetRegistryV1): Promise<
     FlowDocBackendDocGenAssetAdmissionReadyV1 | FlowDocBackendDocGenAssetAdmissionBlockedV1
+  >
+  resolve(registry: ImageAssetRegistryV1): Promise<
+    FlowDocBackendDocGenAssetResolutionV1
   >
 }
 
@@ -198,6 +205,7 @@ export interface FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
     "inserted" | "already-exists"
   >
   readByAdmissionId(admissionId: string): Promise<FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 | null>
+  readByInstanceId(instanceId: string): Promise<FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 | null>
 }
 
 export type FlowDocBackendDocGenLocalAdmissionResultV1 =
@@ -339,12 +347,13 @@ export function createFlowDocBackendDocGenInMemoryTrustedAssetRegistryV1(
     assets.set(definition.id, { definition: clone(definition), bytes: new Uint8Array(entry.bytes) })
   })
 
-  return {
-    async verify(registry) {
-      const admitted = ImageAssetRegistryV1Schema.parse(registry)
-      const issues: FlowDocBackendDocGenLocalAdmissionIssueV1[] = []
-      let verifiedByteCount = 0
-      Object.entries(admitted.images).forEach(([assetId, definition]) => {
+  async function resolveRegistry(registry: ImageAssetRegistryV1):
+  Promise<FlowDocBackendDocGenAssetResolutionV1> {
+    const admitted = ImageAssetRegistryV1Schema.parse(registry)
+    const issues: FlowDocBackendDocGenLocalAdmissionIssueV1[] = []
+    let verifiedByteCount = 0
+    const resolved: FlowDocBackendDocGenTrustedAssetBytesV1[] = []
+    Object.entries(admitted.images).forEach(([assetId, definition]) => {
         const trusted = assets.get(assetId)
         if (trusted == null) {
           issues.push(issue(
@@ -374,22 +383,37 @@ export function createFlowDocBackendDocGenInMemoryTrustedAssetRegistryV1(
           return
         }
         verifiedByteCount += trusted.bytes.byteLength
-      })
-      if (issues.length > 0) return {
-        status: "blocked",
-        registryFingerprint: null,
-        assetCount: Object.keys(admitted.images).length,
-        verifiedByteCount,
-        issues,
+        resolved.push({ definition: clone(trusted.definition), bytes: new Uint8Array(trusted.bytes) })
+    })
+    if (issues.length > 0) return {
+      status: "blocked",
+      registryFingerprint: null,
+      assetCount: Object.keys(admitted.images).length,
+      verifiedByteCount,
+      assets: null,
+      issues,
+    }
+    return {
+      status: "ready",
+      registryFingerprint: fingerprint(admitted),
+      assetCount: Object.keys(admitted.images).length,
+      verifiedByteCount,
+      assets: resolved,
+      issues: [],
+    }
+  }
+
+  return {
+    async verify(registry) {
+      const resolved = await resolveRegistry(registry)
+      if (resolved.status === "blocked") {
+        const { assets: _assets, ...result } = resolved
+        return result
       }
-      return {
-        status: "ready",
-        registryFingerprint: fingerprint(admitted),
-        assetCount: Object.keys(admitted.images).length,
-        verifiedByteCount,
-        issues: [],
-      }
+      const { assets: _assets, ...result } = resolved
+      return result
     },
+    resolve: resolveRegistry,
   }
 }
 
@@ -397,6 +421,7 @@ export function createFlowDocBackendDocGenInMemoryAdmissionRepositoryV1():
 FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
   const byScope = new Map<string, FlowDocBackendDocGenLocalProtectedAdmissionRecordV1>()
   const byAdmissionId = new Map<string, FlowDocBackendDocGenLocalProtectedAdmissionRecordV1>()
+  const byInstanceId = new Map<string, FlowDocBackendDocGenLocalProtectedAdmissionRecordV1>()
   return {
     async readByIdempotency(input) {
       const record = byScope.get(scopeKey(input.tenantId, input.principalId, input.callerKey))
@@ -404,14 +429,23 @@ FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
     },
     async insert(record) {
       const key = scopeKey(record.scope.tenantId, record.scope.principalId, record.idempotency.callerKey)
-      if (byScope.has(key) || byAdmissionId.has(record.admissionId)) return "already-exists"
+      if (
+        byScope.has(key)
+        || byAdmissionId.has(record.admissionId)
+        || byInstanceId.has(record.receipt.instance.instanceId)
+      ) return "already-exists"
       const stored = clone(record)
       byScope.set(key, stored)
       byAdmissionId.set(record.admissionId, stored)
+      byInstanceId.set(record.receipt.instance.instanceId, stored)
       return "inserted"
     },
     async readByAdmissionId(admissionId) {
       const record = byAdmissionId.get(admissionId)
+      return record == null ? null : clone(record)
+    },
+    async readByInstanceId(instanceId) {
+      const record = byInstanceId.get(instanceId)
       return record == null ? null : clone(record)
     },
   }

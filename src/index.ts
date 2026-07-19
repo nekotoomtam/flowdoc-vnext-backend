@@ -1,5 +1,7 @@
 export * from "./artifacts/artifactJobExecution.js"
 export * from "./docgen/docGenLocalAdmission.js"
+export * from "./docgen/docGenLocalPdfExport.js"
+export * from "./docgen/docGenLocalUatArtifact.js"
 export * from "./docgen/docGenLocalHttpHandler.js"
 export * from "./pdfExport/pdfExportOperation.js"
 export * from "./pdfExport/pdfExportOperationRepository.js"

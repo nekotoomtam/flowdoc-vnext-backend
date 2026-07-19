@@ -206,5 +206,8 @@ existing `/pdf-exports` and eligibility contracts remain unchanged, and the
 default application server remains unmounted. Explicit tests mount the handler
 with trusted in-memory Structure/mapper/asset registries, enforce a 2 MiB HTTP
 body and 1 MiB adapted-payload ceiling, and stop at a protected
-materialization-ready canonical record. REALDOC-E.4 remains responsible for
-connecting that record to the durable worker and artifact lifecycle.
+materialization-ready canonical record. REALDOC-E.4 now binds that record to
+the existing operation/worker/artifact lifecycle through a separate optional
+local materializer. The default HTTP composition remains canonical-evidence
+only. REALDOC-E.5 remains responsible for Editor pre-test over that same
+admission and artifact path.
