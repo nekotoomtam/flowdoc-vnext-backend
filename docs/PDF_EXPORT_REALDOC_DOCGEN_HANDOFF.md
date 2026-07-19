@@ -1,8 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.1` bounded local Library read boundary and
-Editor Library accepted after the E.5.0 product contract. Durable generation
-storage and production behavior remain inactive; production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.2` shared Editor workspace tabs accepted after
+the E.5.1 bounded local Library. Backend generation behavior, durable
+generation storage, and production behavior remain inactive; production
+remains NO-GO.
 
 ## Direction
 
@@ -231,6 +232,20 @@ Editor. It does not change DocGen admission, PDF routes, renderer, worker,
 storage providers, or production composition. Retained contract and HTTP tests
 cover ordering, pagination, invalid input, and content exclusion.
 
+## E.5.2 Workspace Tabs Handoff
+
+The Editor now retains one document-keyed Design runtime while URL-backed
+Design and Preview views switch. The Preview route reads only the already-loaded
+authoring document summary and reports migration-required or unavailable state.
+It submits no data and calls no Backend admission, materialization, PDF, status,
+or download route.
+
+No Backend contract or implementation changes in E.5.2. `GET /documents` keeps
+Preview capability unavailable, direct Library Preview action remains disabled,
+and `GET /documents/:documentId` remains the sole authoring load. The new route
+does not imply Published Structure, generation instance, canonical snapshot, or
+artifact identity.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -256,7 +271,8 @@ the DocGen admission/resolution owner before reusing those pieces.
   Accepted.
 - E.5.0 locks the Library/workspace/generated-Form/Preview contract. Accepted.
 - E.5.1 adds the bounded local Library query, route, and Editor view. Accepted.
-- E.5.2 through E.5.9 add the workspace, input projection, Form/JSON
+- E.5.2 adds the shared workspace header and Design/Preview URL state. Accepted.
+- E.5.3 through E.5.9 add the input projection, Form/JSON
   state, Published and Draft Preview, lifecycle UX, and parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
@@ -306,6 +322,6 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.2` adds the shared workspace header and URL-backed
-Design/Preview tabs without activating generated input or Preview execution.
-Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.3` adds the Core UI-neutral test-input projection and
+missing scalar generation constraints without changing Backend routes or
+activating Preview execution. Production remains NO-GO.
