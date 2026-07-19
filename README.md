@@ -133,6 +133,14 @@ Current slice:
   materialization with content-free diagnostics; Backend still adds no parser,
   route, mapper registry, repository, worker, provider, or production binding
   in `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
+- PDF export REALDOC-E.3/E.4 accepts the optional bounded local DocGen
+  admission and binds protected canonical records to the existing local
+  artifact lifecycle. Default mounting, durable generation storage, and
+  production remain inactive.
+- PDF export REALDOC-E.5.1/E.5.2 accepts the bounded local Document Library and
+  shared Editor workspace tabs. E.5.3 adds only Core's pure test-input
+  projection; Backend routes and Preview execution remain unchanged in
+  `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the
