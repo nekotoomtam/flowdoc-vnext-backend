@@ -117,6 +117,12 @@ Current slice:
   envelope. Local qualification is accepted while product-document eligibility
   and every production binding remain closed in
   `docs/PDF_EXPORT_LOCAL_READINESS_AUDIT.md`
+- PDF export REALDOC-E.0 keeps the next lane API-driven: one exact Published
+  Structure Version plus caller-owned data enters a direct-data or versioned
+  mapping contract before Core resolution. Editor test import must share that
+  Backend path; the current document-pin eligibility route remains canonical
+  evidence only and production remains NO-GO in
+  `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

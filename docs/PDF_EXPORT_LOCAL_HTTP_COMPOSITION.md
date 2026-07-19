@@ -170,9 +170,10 @@ LOCAL-G measurements and the complete exit-gate matrix are retained in
 
 ## UNKNOWN
 
-- Browser lifecycle evidence for an eligible product Editor working set; the
-  current product Editor document remains explicitly ineligible.
-- The first trusted product-document measurement/resource resolver.
+- Browser lifecycle evidence for a Backend-admitted Published Structure and
+  test payload; the current product Editor document remains explicitly
+  ineligible and is not the DocGen request contract.
+- The first Published Structure generation admission and runtime mapping owner.
 - Production identity, providers, TLS/proxy, rate limits, deployment, SLOs,
   cost, retention, backup, and operations.
 
@@ -190,6 +191,10 @@ LOCAL-G measurements and the complete exit-gate matrix are retained in
 LOCAL-F Editor evidence is retained in
 `../flowdoc-vnext-editor/docs/PDF_EXPORT_LOCAL_EDITOR_INTEGRATION.md`.
 
-LOCAL-A through LOCAL-G local qualification is complete. Next local work is a
-trusted product-document measurement/resource lane and eligible Editor
-lifecycle. Production remains NO-GO and requires its own later review.
+LOCAL-A through LOCAL-G local qualification is complete. REALDOC-E.0 now locks
+the next work as API-driven DocGen rather than current Editor-document
+eligibility. The Backend must admit a Published Structure Version, caller data,
+mapping/input contract, generation instance, and digest-bound assets before
+reusing this local lifecycle. The Editor pre-test must call the same path as an
+external API-shaped client. See `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`.
+Production remains NO-GO and requires its own later review.
