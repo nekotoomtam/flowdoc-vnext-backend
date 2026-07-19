@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.4` temporary Editor Form accepted after the
-E.5.3 Core test-input projection, E.5.1 bounded local Library, and E.5.2 shared
-Editor workspace tabs. Backend generation behavior, durable generation storage,
-and production behavior remain inactive; production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.5` temporary Editor JSON/mapping preparation
+accepted after the E.5.4 generated Form and E.5.3 Core test-input projection.
+Backend generation behavior, durable generation storage, and production
+behavior remain inactive; production remains NO-GO.
 
 ## Direction
 
@@ -275,6 +275,25 @@ records still expose Preview unavailable, no route serves a projection, and no
 request accepts Form values, creates canonical snapshots, or starts generation.
 The development-only Form fixture is not Backend or canonical evidence.
 
+## E.5.5 Temporary JSON And Mapping Handoff
+
+Editor now owns memory-only UTF-8 JSON text and one exact mapping-profile id,
+version, and fingerprint beside Form state. It accepts a profile only from a
+supplied catalog when owner and target pins match the active Published Structure
+projection. Local checks cover presence, the existing 1 MiB adapted JSON limit,
+syntax, profile availability, and exact owner/target compatibility.
+
+These checks produce generated content-free codes, paths, messages, counts, and
+byte length. A passing result is only `ready-for-admission`; mapping, canonical
+snapshot creation, runtime validation, materialization, and artifact execution
+remain `not-run`.
+
+No Backend contract or implementation changes in E.5.5. The Editor does not
+call `POST /docgen-local/admissions`, no profile-discovery route is added, and
+no current document record becomes DocGen-eligible. E.3 remains the authority
+that fingerprints admitted text, resolves an allowlisted mapper by id/version,
+verifies full profile/execution identity, and returns redacted diagnostics.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -303,8 +322,10 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.5.2 adds the shared workspace header and Design/Preview URL state. Accepted.
 - E.5.3 adds the pure Core test-input projection. Accepted.
 - E.5.4 adds temporary generated Form state. Accepted without Backend changes.
-- E.5.5 through E.5.9 add JSON state, Published and Draft Preview, lifecycle UX,
-  and parity evidence.
+- E.5.5 adds temporary JSON/mapping preparation. Accepted without Backend
+  changes.
+- E.5.6 through E.5.9 add Published and Draft Preview, lifecycle UX, and parity
+  evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -353,8 +374,7 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.4` now accepts Editor-owned temporary Form state over the
-Core projection without a Backend route or Preview execution.
-`PDF-EXPORT-REALDOC-E.5.5` next adds temporary JSON selection, exact
-mapping-profile selection, and content-free diagnostics. Production remains
-NO-GO.
+`PDF-EXPORT-REALDOC-E.5.5` now accepts Editor-owned temporary JSON and exact
+mapping-profile preparation without a Backend route or Preview execution.
+`PDF-EXPORT-REALDOC-E.5.6` next binds Published Preview to the accepted E.3/E.4
+path. Production remains NO-GO.
