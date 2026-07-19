@@ -85,10 +85,10 @@ latency, backup/restore, disaster recovery, multi-region behavior, production
 security, provider cost, or operational SLOs.
 
 The next local product task is not to make the current Editor working-set
-document eligible. REALDOC-E must first admit one exact Published Structure
-Version plus caller-owned data through a versioned direct-data or mapping
-contract, produce a pinned canonical Data Snapshot and generation instance,
-then exercise the accepted artifact lifecycle without canonical fixture
-substitution. Editor test import and an external API-shaped caller must converge
-before resolution. Production provider selection remains a separate deferred
-review. See `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`.
+document eligible. REALDOC-E.3 now admits one exact Published Structure Version
+plus caller-owned data through a bounded optional local route and retains a
+protected canonical record. REALDOC-E.4 must bind that record to
+materialization and the accepted artifact lifecycle without canonical fixture
+substitution. Editor test import and an external API-shaped caller must still
+converge before resolution. Production provider selection remains a separate
+deferred review. See `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`.

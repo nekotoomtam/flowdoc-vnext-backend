@@ -26,7 +26,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
     "@flowdoc/vnext-core": "file:../flowdoc-vnext-core",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@flowdoc/pdf-renderer-pilot": "file:../flowdoc-vnext-core/packages/pdf-renderer-pilot",

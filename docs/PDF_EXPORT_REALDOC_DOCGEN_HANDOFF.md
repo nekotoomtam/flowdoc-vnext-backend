@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.0` Backend ownership lock with
-`PDF-EXPORT-REALDOC-E.1` generation-input and `PDF-EXPORT-REALDOC-E.2` Core
-mapping/validation runtime accepted. No Backend route or runtime change;
-production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.3` bounded local Backend DocGen admission
+accepted after the E.0 ownership lock, E.1 generation input, and E.2 Core
+mapping/validation runtime. Materialization, artifact execution, default route
+activation, and production remain inactive and NO-GO.
 
 ## Direction
 
@@ -101,23 +101,64 @@ fingerprints without source values or mapper exception text. Ready canonical
 snapshots do contain caller business data and must not be copied into redacted
 operation/status events.
 
-Backend E.3 must add a bounded local admission owner around this runtime. It
-must retrieve the exact Published Structure/data contract, allocate or load the
-generation instance, enforce request size and payload retention policy, select
-an allowlisted mapper by exact execution identity, and admit asset bytes before
-calling Core. The browser or caller cannot provide executable mapper code.
+Backend E.3 therefore adds a bounded local admission owner around this runtime.
+It retrieves the exact Published Structure/data contract, creates the
+generation instance, enforces request size and payload retention policy,
+selects an allowlisted mapper by exact execution identity, and admits asset
+bytes before calling Core. The browser or caller cannot provide executable
+mapper code.
 
 E.2 adds no Backend parser, route, mapper registry, authorization decision,
 repository, worker, storage object, provider, or lifecycle event. The current
 document-pin local lane remains unchanged.
 
+## E.3 Accepted Local Admission
+
+E.3 adds one strict `POST /docgen-local/admissions` handler that can be mounted
+only by explicitly passing `docGenAdmissionOptions` to the existing loopback
+local HTTP server. It is absent by default, is not mounted by the local command
+composition or normal application server, adds no CORS headers, and retains
+`productionBinding: false`.
+
+The bounded request accepts only one exact Published Structure Version ref,
+one digest-bound instance image registry, and either direct `DataSnapshotV2`
+plus collection values or an exact mapping-profile id/version plus ephemeral
+UTF-8 JSON text. The HTTP envelope is capped at 2 MiB; adapted JSON text is
+separately capped at 1 MiB of UTF-8 bytes. `Authorization`,
+`Content-Type: application/json`, and `Idempotency-Key` are required.
+
+The strict schema rejects caller tenant, principal, instance, mapper code,
+layout, renderer, provider, worker, artifact, and final-geometry facts. Backend
+derives tenant/principal only from authentication, authorizes `docgen:admit`
+for the exact Structure, resolves an immutable data contract, and selects only
+an allowlisted mapping profile plus mapper with an exact execution identity.
+It creates a deterministic revision-0 Document Instance and snapshot ids.
+
+The local trusted asset registry verifies actual bytes against exact byte
+length and SHA-256 before Core executes. Backend then requires mapped canonical
+media to equal the admitted registry. Missing bytes, definition drift, mapping
+drift, runtime validation failure, or canonical-media drift blocks without a
+protected record.
+
+Successful canonical snapshots are retained only in a protected in-memory
+record for E.4. Raw adapted JSON is not retained. The public receipt contains
+only identities, fingerprints, counts, and content-free Core diagnostics.
+Same-scope exact replay returns that receipt without rerunning a mapper; a
+changed request under the same idempotency key conflicts.
+
+E.3 returns `202` for creation, `200` for replay, `409` for conflict, `413` for
+an oversized body, `415` for unsupported content type, and `422` for blocked
+admission. It performs no materialization, resolution, measurement, pagination,
+worker enqueue, renderer call, storage write, artifact projection, status
+lifecycle, or download.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
 body contains only `documentId` and `documentRevision`, and its composition
-retains `canonicalEvidenceOnly: true`. REALDOC-E.0 does not widen that handler,
-change its eligibility vocabulary, mount a product route, or substitute the
-69C source for an Editor working-set document.
+retains `canonicalEvidenceOnly: true`. REALDOC-E.3 does not widen that handler,
+change its eligibility vocabulary, or substitute the 69C source for an Editor
+working-set document. The DocGen handler is a separate optional endpoint.
 
 Reusable accepted pieces include authentication/authorization boundaries,
 idempotent operation lifecycle, due-work discovery, cooperative cancellation,
@@ -131,39 +172,51 @@ the DocGen admission/resolution owner before reusing those pieces.
   contract in Core without Backend runtime activation.
 - E.2 accepts pure Core mapping/validation and direct/adapted canonical parity
   without Backend route activation.
-- E.3 adds bounded local DocGen admission and exact identity pins.
+- E.3 adds bounded local DocGen admission and exact identity pins. Accepted.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
 - E.5 exposes the same contract to Editor pre-test.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
 
-- no local or default route change;
-- no request parser, eligibility lane, resolver, renderer, worker, repository,
-  provider, or environment change;
+- no default application route, local command, or automatic listener change;
+- no existing PDF request parser, eligibility lane, resolver, renderer, worker,
+  durable repository, provider, or environment change;
+- no 69C mapping-profile/asset registry is mounted yet;
 - no 69C source bytes or user path copied into Backend;
 - no production identity, tenancy, provider, deployment, or activation; and
 - no claim that arbitrary generic repeat/conditional book composition is
   already implemented.
 
+## PASS
+
+- Direct and adapted callers reach protected canonical records through the
+  same Core runtime.
+- Backend owns exact Structure, mapper, instance, idempotency, and asset-byte
+  admission.
+- Strict public receipts contain no raw payload or canonical business values.
+- Existing PDF routes and local command composition remain unchanged.
+
 ## RISK
 
 - Reusing the current document-pin request shape for DocGen would hide the
   Published Structure, mapping, payload, and Data Snapshot identities.
-- Running source mapping in the browser would create a second resolver and
-  make external API behavior diverge from pre-test.
+- The protected repository is process-local; restart durability begins only
+  when E.4 binds admission to the existing artifact lifecycle.
+- Running source mapping in the browser would still create a second resolver
+  and make external API behavior diverge from pre-test.
 - The accepted Render API and variable/data mini-lanes in Core include
   metadata-only evidence that must not be mistaken for runtime validation.
 
 ## UNKNOWN
 
-- Final local published-Structure repository and lookup surface.
-- Mapping DSL versus named adapter registry.
-- Temporary versus retained generation-instance lifecycle.
-- Asset upload/reference protocol for external callers.
+- Durable published-Structure and protected canonical repositories.
+- Mapping DSL versus additional named adapters beyond the trusted boundary.
+- Temporary versus retained generation-instance lifecycle after E.4.
+- Asset upload/reference protocol beyond local trusted bytes.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.3` bounded local Backend DocGen admission with exact
-Structure, data-contract, instance, payload/snapshot, mapper, and asset pins.
-Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.4` binds one admitted 69C generation record to
+materialization, resolution, and the existing local worker/artifact lifecycle
+without fixture substitution. Production remains NO-GO.

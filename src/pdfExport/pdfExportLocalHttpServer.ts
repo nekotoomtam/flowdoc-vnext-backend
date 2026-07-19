@@ -9,6 +9,10 @@ import {
   createFlowDocBackendPdfExportLocalEligibilityHttpHandlerV1,
   type FlowDocBackendPdfExportLocalEligibilityHttpHandlerOptionsV1,
 } from "./pdfExportLocalEligibilityHttpHandler.js"
+import {
+  createFlowDocBackendDocGenLocalHttpHandlerV1,
+  type FlowDocBackendDocGenLocalHttpHandlerOptionsV1,
+} from "../docgen/docGenLocalHttpHandler.js"
 
 export const FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_HTTP_SERVER_V1_SOURCE =
   "flowdoc-backend-pdf-export-local-http-server" as const
@@ -27,6 +31,7 @@ export interface FlowDocBackendPdfExportLocalCompositionEvidenceV1 {
   remoteProviderCallsAllowed: false
   automaticListenerStart: false
   corsEnabled: false
+  docGenAdmissionMounted: boolean
   productionBinding: false
   fingerprint: string
 }
@@ -52,6 +57,7 @@ export interface FlowDocBackendPdfExportLocalHttpServerV1 {
 function evidence(input: {
   mounted: boolean
   port: number | null
+  docGenAdmissionMounted: boolean
 }): FlowDocBackendPdfExportLocalCompositionEvidenceV1 {
   const facts = {
     source: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_HTTP_SERVER_V1_SOURCE,
@@ -67,6 +73,7 @@ function evidence(input: {
     remoteProviderCallsAllowed: false as const,
     automaticListenerStart: false as const,
     corsEnabled: false as const,
+    docGenAdmissionMounted: input.docGenAdmissionMounted,
     productionBinding: false as const,
   }
   return { ...facts, fingerprint: flowDocBackendPdfExportFingerprintV1(facts) }
@@ -86,6 +93,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   port: number
   routeOptions: FlowDocBackendPdfExportHttpHandlerOptionsV1
   eligibilityOptions?: FlowDocBackendPdfExportLocalEligibilityHttpHandlerOptionsV1
+  docGenAdmissionOptions?: FlowDocBackendDocGenLocalHttpHandlerOptionsV1
 }): FlowDocBackendPdfExportLocalHttpServerV1 {
   if (input.host !== "127.0.0.1") throw new Error("local PDF HTTP listener must use 127.0.0.1")
   if (!Number.isSafeInteger(input.port) || input.port < 0 || input.port > 65_535) {
@@ -95,6 +103,9 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   const eligibilityHandler = input.eligibilityOptions == null
     ? null
     : createFlowDocBackendPdfExportLocalEligibilityHttpHandlerV1(input.eligibilityOptions)
+  const docGenAdmissionHandler = input.docGenAdmissionOptions == null
+    ? null
+    : createFlowDocBackendDocGenLocalHttpHandlerV1(input.docGenAdmissionOptions)
   let mounted = false
   let mountedPort: number | null = null
   let startPromise: Promise<FlowDocBackendPdfExportLocalCompositionEvidenceV1> | null = null
@@ -109,6 +120,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
         })
         return
       }
+      if (docGenAdmissionHandler != null && await docGenAdmissionHandler(request, response)) return
       if (eligibilityHandler != null && await eligibilityHandler(request, response)) return
       if (await handler(request, response)) return
       writeJson(response, 404, { status: "not-found" })
@@ -122,6 +134,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   const readEvidence = () => cloneFlowDocBackendPdfExportJsonV1(evidence({
     mounted,
     port: mountedPort,
+    docGenAdmissionMounted: docGenAdmissionHandler != null,
   }))
 
   return {

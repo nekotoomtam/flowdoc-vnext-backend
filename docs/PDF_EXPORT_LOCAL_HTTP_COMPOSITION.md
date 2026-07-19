@@ -173,7 +173,8 @@ LOCAL-G measurements and the complete exit-gate matrix are retained in
 - Browser lifecycle evidence for a Backend-admitted Published Structure and
   test payload; the current product Editor document remains explicitly
   ineligible and is not the DocGen request contract.
-- The first Published Structure generation admission and runtime mapping owner.
+- Durable Published Structure/admission storage and the E.4
+  materialization-to-artifact binding.
 - Production identity, providers, TLS/proxy, rate limits, deployment, SLOs,
   cost, retention, backup, and operations.
 
@@ -198,3 +199,12 @@ mapping/input contract, generation instance, and digest-bound assets before
 reusing this local lifecycle. The Editor pre-test must call the same path as an
 external API-shaped client. See `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`.
 Production remains NO-GO and requires its own later review.
+
+REALDOC-E.3 adds a separate optional `POST /docgen-local/admissions` handler to
+this loopback server. The current local command does not configure it, the
+existing `/pdf-exports` and eligibility contracts remain unchanged, and the
+default application server remains unmounted. Explicit tests mount the handler
+with trusted in-memory Structure/mapper/asset registries, enforce a 2 MiB HTTP
+body and 1 MiB adapted-payload ceiling, and stop at a protected
+materialization-ready canonical record. REALDOC-E.4 remains responsible for
+connecting that record to the durable worker and artifact lifecycle.
