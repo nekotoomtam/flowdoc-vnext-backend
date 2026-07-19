@@ -214,5 +214,6 @@ product contract without mounting anything. REALDOC-E.5.1 now mounts a separate
 bounded metadata-only `GET /documents` route in the default local Backend used
 by the Editor. It does not widen this PDF composition or expose DocGen values.
 E.5.2 now accepts workspace Design/Preview navigation without calling this
-composition. E.5.3 next adds a pure Core UI-neutral input projection; later
+composition. E.5.3 accepts a pure Core UI-neutral input projection and E.5.4
+accepts temporary Editor Form state without calling this composition. Later
 E.5 phases expose pre-test over the same admission and artifact path.

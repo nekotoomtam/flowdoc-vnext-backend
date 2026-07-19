@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.3` Core test-input projection accepted after
-the E.5.1 bounded local Library and E.5.2 shared Editor workspace tabs. Backend
-generation behavior, durable generation storage, and production behavior
-remain inactive; production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.4` temporary Editor Form accepted after the
+E.5.3 Core test-input projection, E.5.1 bounded local Library, and E.5.2 shared
+Editor workspace tabs. Backend generation behavior, durable generation storage,
+and production behavior remain inactive; production remains NO-GO.
 
 ## Direction
 
@@ -262,6 +262,19 @@ snapshots, generation instances, operations, or artifacts. A future transport
 must load trusted exact Structure/table contracts; it must not accept those
 contracts as caller-authored layout facts.
 
+## E.5.4 Temporary Form Handoff
+
+Editor now owns one memory-only generated Form session over a ready E.5.3
+projection. The state pins exact Structure owner/fingerprint, data-contract
+fingerprint, and projection fingerprint; any pin change resets all temporary
+values. Collection absence remains distinct from included-empty and selected
+image files stay in browser memory outside pure Form state.
+
+No Backend contract or implementation changes in E.5.4. Current document
+records still expose Preview unavailable, no route serves a projection, and no
+request accepts Form values, creates canonical snapshots, or starts generation.
+The development-only Form fixture is not Backend or canonical evidence.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -289,8 +302,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.5.1 adds the bounded local Library query, route, and Editor view. Accepted.
 - E.5.2 adds the shared workspace header and Design/Preview URL state. Accepted.
 - E.5.3 adds the pure Core test-input projection. Accepted.
-- E.5.4 through E.5.9 add Form/JSON state, Published and Draft Preview,
-  lifecycle UX, and parity evidence.
+- E.5.4 adds temporary generated Form state. Accepted without Backend changes.
+- E.5.5 through E.5.9 add JSON state, Published and Draft Preview, lifecycle UX,
+  and parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -339,6 +353,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.4` adds Editor-owned temporary Form state over the
-accepted Core projection. It does not yet require a Backend route or activate
-Preview execution. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.4` now accepts Editor-owned temporary Form state over the
+Core projection without a Backend route or Preview execution.
+`PDF-EXPORT-REALDOC-E.5.5` next adds temporary JSON selection, exact
+mapping-profile selection, and content-free diagnostics. Production remains
+NO-GO.

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 const read = (relativePath: string): string => readFileSync(new URL(relativePath, import.meta.url), "utf8")
 
-describe("PDF-EXPORT-REALDOC-E.0-E.5.3 Backend DocGen handoff", () => {
+describe("PDF-EXPORT-REALDOC-E.0-E.5.4 Backend DocGen handoff", () => {
   it("separates Published Structure admission from caller-owned data", () => {
     const doc = read("../../docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md")
 
@@ -19,6 +19,7 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.3 Backend DocGen handoff", () => {
       "## E.5.1 Local Library Handoff",
       "## E.5.2 Workspace Tabs Handoff",
       "## E.5.3 Test-Input Projection Handoff",
+      "## E.5.4 Temporary Form Handoff",
       "## Existing Local Lane",
       "## Phase Order",
       "## Explicitly Not Changed",
@@ -47,8 +48,9 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.3 Backend DocGen handoff", () => {
     expect(doc).toContain("E.4 adds `createFlowDocBackendDocGenLocalArtifactBindingV1(...)`")
     expect(doc).toContain("local `GET /documents` list boundary")
     expect(doc).toMatch(/cannot claim secure per-user scoping/)
-    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.5.4` adds Editor-owned temporary Form state")
+    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.5.5` next adds temporary JSON selection")
     expect(doc).toMatch(/No Backend contract or implementation changes in E\.5\.3/)
+    expect(doc).toMatch(/No Backend contract or implementation changes in E\.5\.4/)
   })
 
   it("keeps the accepted local composition canonical-only", () => {
