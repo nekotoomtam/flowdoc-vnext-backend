@@ -128,6 +128,11 @@ Current slice:
   Backend still retains raw payload ownership and adds no route, mapping
   runtime, storage, worker, or production binding in
   `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
+- PDF export REALDOC-E.2 accepts Core's exact payload/mapper execution and
+  shared canonical validation. Direct and adapted inputs converge before
+  materialization with content-free diagnostics; Backend still adds no parser,
+  route, mapper registry, repository, worker, provider, or production binding
+  in `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

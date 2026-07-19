@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 const read = (relativePath: string): string => readFileSync(new URL(relativePath, import.meta.url), "utf8")
 
-describe("PDF-EXPORT-REALDOC-E.0/E.1 Backend DocGen handoff", () => {
+describe("PDF-EXPORT-REALDOC-E.0-E.2 Backend DocGen handoff", () => {
   it("separates Published Structure admission from caller-owned data", () => {
     const doc = read("../../docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md")
 
@@ -12,6 +12,7 @@ describe("PDF-EXPORT-REALDOC-E.0/E.1 Backend DocGen handoff", () => {
       "## Backend Ownership",
       "## Input Families",
       "## E.1 Accepted Core Input",
+      "## E.2 Accepted Core Runtime",
       "## Existing Local Lane",
       "## Phase Order",
       "## Explicitly Not Changed",
@@ -28,7 +29,11 @@ describe("PDF-EXPORT-REALDOC-E.0/E.1 Backend DocGen handoff", () => {
     expect(doc).toContain("`mapping-required`")
     expect(doc).toMatch(/Core receives their\s+id, media type, byte length, and SHA-256 descriptor, not the raw JSON/)
     expect(doc).toMatch(/E\.1 adds no request parser, route, repository, worker, provider/)
-    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.2` runtime mapping")
+    expect(doc).toMatch(/exact UTF-8 payload byte length and SHA-256 are verified/)
+    expect(doc).toMatch(/mapped and direct snapshots use the same fail-closed validator/)
+    expect(doc).toMatch(/browser or caller cannot provide executable mapper code/)
+    expect(doc).toMatch(/E\.2 adds no Backend parser, route, mapper registry/)
+    expect(doc).toContain("`PDF-EXPORT-REALDOC-E.3` bounded local Backend DocGen admission")
   })
 
   it("keeps the accepted local composition canonical-only", () => {
@@ -42,5 +47,6 @@ describe("PDF-EXPORT-REALDOC-E.0/E.1 Backend DocGen handoff", () => {
     expect(composition).toContain("productionBinding: false")
     expect(localCompositionDoc).not.toContain("eligible Editor lifecycle")
     expect(composition).not.toContain("mappingProfile")
+    expect(composition).not.toContain("payloadText")
   })
 })

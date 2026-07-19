@@ -1,8 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
 Status: `PDF-EXPORT-REALDOC-E.0` Backend ownership lock with
-`PDF-EXPORT-REALDOC-E.1` Core generation-input contract accepted. No Backend
-runtime change; production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.1` generation-input and `PDF-EXPORT-REALDOC-E.2` Core
+mapping/validation runtime accepted. No Backend route or runtime change;
+production remains NO-GO.
 
 ## Direction
 
@@ -83,6 +84,33 @@ E.1 adds no request parser, route, repository, worker, provider, payload
 retention policy, or product-document eligibility. The existing local
 document-pin route remains unchanged.
 
+## E.2 Accepted Core Runtime
+
+Core now executes admitted E.1 requests far enough to return validated
+canonical snapshots:
+
+- exact UTF-8 payload byte length and SHA-256 are verified before JSON parsing;
+- one injected mapper must match the exact named-adapter or declarative-mapping
+  execution identity admitted by the profile;
+- mapped and direct snapshots use the same fail-closed validator; and
+- ready output stops at `materialization` with every downstream execution fact
+  still `not-run`.
+
+Runtime diagnostics contain generated codes, bounded paths, counts, and
+fingerprints without source values or mapper exception text. Ready canonical
+snapshots do contain caller business data and must not be copied into redacted
+operation/status events.
+
+Backend E.3 must add a bounded local admission owner around this runtime. It
+must retrieve the exact Published Structure/data contract, allocate or load the
+generation instance, enforce request size and payload retention policy, select
+an allowlisted mapper by exact execution identity, and admit asset bytes before
+calling Core. The browser or caller cannot provide executable mapper code.
+
+E.2 adds no Backend parser, route, mapper registry, authorization decision,
+repository, worker, storage object, provider, or lifecycle event. The current
+document-pin local lane remains unchanged.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -101,7 +129,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 - E.1 accepts the published-Structure generation input and mapping identity
   contract in Core without Backend runtime activation.
-- E.2 accepts runtime mapping and direct/adapted input parity.
+- E.2 accepts pure Core mapping/validation and direct/adapted canonical parity
+  without Backend route activation.
 - E.3 adds bounded local DocGen admission and exact identity pins.
 - E.4 binds accepted REALDOC resolution to the existing worker/artifact lane.
 - E.5 exposes the same contract to Editor pre-test.
@@ -135,5 +164,6 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.2` runtime mapping, validation, content-free diagnostics,
-and direct/adapted parity. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.3` bounded local Backend DocGen admission with exact
+Structure, data-contract, instance, payload/snapshot, mapper, and asset pins.
+Production remains NO-GO.
