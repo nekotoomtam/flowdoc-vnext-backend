@@ -153,6 +153,11 @@ Current slice:
   one optional durable local bundle. Four-process generic recovery and the
   exact 10-page 69C after-render recovery pass; automatic startup discovery,
   Editor reconnect, scale work, and production remain pending.
+- PDF export REALDOC-E.6.3 adds the optional explicit-resume local runtime and
+  strict Editor reconnect contract. Exact request replay, status recovery,
+  uncertain cancel reconciliation, scoped concealment, stale-result rejection,
+  diagnostics, and verified 10-page download pass. Automatic startup
+  discovery, scale work, and production remain inactive.
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

@@ -76,9 +76,10 @@ receipt unchanged rather than constructing a new one.
 | record corruption | strict read rejects and admission fails closed without mapping |
 | downstream binding fact | memory reports false; SQLite reports true from the repository storage contract |
 
-## Remaining E.6
+## Subsequent E.6 (Accepted)
 
-E.6.1 does not make the current optional REALDOC runtime fully restartable.
+E.6.1 alone did not make the optional REALDOC runtime fully restartable. The
+following subphases are now also accepted:
 
 - `E.6.2`: durably compose operation, lifecycle, observability, artifact
   metadata, artifact bytes, worker reconstruction, status, and download.
@@ -102,9 +103,9 @@ npm test -- --run src/tests/docGenLocalAdmission.test.ts src/tests/docGenLocalPd
 npm run type-check
 ```
 
-## Next Phase
+## Current Status
 
 `PDF-EXPORT-REALDOC-E.6.2` is now accepted in
-`docs/PDF_EXPORT_REALDOC_DURABLE_LIFECYCLE.md`. E.6.3 next owns durable local
-runtime wiring and Editor reload/reconnect acceptance. Production remains
-NO-GO.
+`docs/PDF_EXPORT_REALDOC_DURABLE_LIFECYCLE.md`, where E.6.3 durable local
+runtime wiring and Editor reload/reconnect acceptance are also complete.
+Production remains NO-GO.

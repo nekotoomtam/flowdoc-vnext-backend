@@ -1,0 +1,85 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.6.3",
+  "status": "accepted",
+  "source": {
+    "requirementCount": 10,
+    "screenshotCount": 7,
+    "adaptedPayloadByteLength": 749929
+  },
+  "admission": {
+    "lane": "adapted",
+    "durablePersistence": true,
+    "canonicalBusinessDataExposed": false,
+    "rawPayloadRetained": false,
+    "diagnosticErrorCount": 0,
+    "diagnosticWarningCount": 3
+  },
+  "reconnect": {
+    "repositoryOpenCount": 4,
+    "initialPendingClosed": true,
+    "explicitRequestReplay": true,
+    "statusRecovered": true,
+    "uncertainCancelReconciled": true,
+    "cancelKeyIdempotentReplay": true,
+    "scopedOtherPrincipalConcealed": true,
+    "dispatchEvidence": [
+      {
+        "scheduledCount": 1,
+        "completedCount": 0,
+        "failedCount": 0,
+        "activeCount": 0,
+        "pendingTimerCount": 1
+      },
+      {
+        "scheduledCount": 1,
+        "completedCount": 1,
+        "failedCount": 0,
+        "activeCount": 0,
+        "pendingTimerCount": 0
+      },
+      {
+        "scheduledCount": 1,
+        "completedCount": 0,
+        "failedCount": 0,
+        "activeCount": 0,
+        "pendingTimerCount": 1
+      },
+      {
+        "scheduledCount": 1,
+        "completedCount": 1,
+        "failedCount": 0,
+        "activeCount": 0,
+        "pendingTimerCount": 0
+      }
+    ]
+  },
+  "editor": {
+    "sessionStorageOnly": true,
+    "inputContentFingerprintOnly": true,
+    "formValuesStored": false,
+    "rawJsonPayloadStored": false,
+    "canonicalBusinessDataStored": false,
+    "staleResultRejected": true,
+    "diagnosticsRestoredFromSanitizedReceipt": true
+  },
+  "artifact": {
+    "state": "completed",
+    "pageCount": 10,
+    "byteLength": 1417544,
+    "sha256": "bd45a545c1f81f3ae0904b51a25257adcacc26f873bd50dfa9a0c6926a523f86",
+    "verifiedDownload": true
+  },
+  "scale": {
+    "fullDocumentPagesTested": false,
+    "fullDocumentTargetPages": 200,
+    "fullDocumentPhase": "PDF-EXPORT-REALDOC-G"
+  },
+  "contracts": {
+    "durableComposition": true,
+    "explicitRequestReplayResume": true,
+    "automaticStartupDiscovery": false,
+    "defaultApplicationServerMounted": false,
+    "productionBinding": false
+  }
+}

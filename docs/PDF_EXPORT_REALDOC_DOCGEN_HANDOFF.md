@@ -1,8 +1,8 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.6.2` durable operation/lifecycle/artifact
-reconstruction accepted after durable protected admission. Editor reconnect,
-default application mounting, and production behavior remain inactive;
+Status: `PDF-EXPORT-REALDOC-E.6.3` durable runtime and Editor reconnect
+accepted after durable protected admission and operation/artifact restart.
+Default application mounting and production behavior remain inactive;
 production remains NO-GO.
 
 ## Direction
@@ -395,9 +395,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 - Reusing the current document-pin request shape for DocGen would hide the
   Published Structure, mapping, payload, and Data Snapshot identities.
-- The protected admission repository is now optionally durable and passes
-  fresh-process replay. Operation/lifecycle/artifact reconstruction still
-  remains E.6.2 evidence.
+- The optional local runtime resumes only a known operation through exact
+  scoped request replay. Automatic startup discovery remains deliberately
+  inactive.
 - Running source mapping in the browser would still create a second resolver
   and make external API behavior diverge from pre-test.
 - Rendered REALDOC-D/E.4 continuation pages retain a renderer-pilot defect that
@@ -413,10 +413,10 @@ the DocGen admission/resolution owner before reusing those pieces.
 - Temporary versus retained generation-instance lifecycle after E.4.
 - Asset upload/reference protocol beyond local trusted bytes.
 
-## Next Phase
+## Next Decision
 
-`PDF-EXPORT-REALDOC-E.6.2` now accepts the optional complete durable local
-repository bundle and exact 69C recovery after an injected post-render fault.
-`E.6.3` next owns durable runtime wiring and Editor reconnect/cancel/retry UX.
-The default and production schedulers remain unchanged. Production remains
-NO-GO.
+`PDF-EXPORT-REALDOC-E.6.3` now accepts explicit durable runtime resume plus
+Editor reconnect, cancel/retry reconciliation, diagnostics, stale-result
+rejection, and verified download. Complete E.6 is accepted for the optional
+local profile. REALDOC-F, REALDOC-G, and production remain deferred; the
+default and production schedulers remain unchanged. Production remains NO-GO.

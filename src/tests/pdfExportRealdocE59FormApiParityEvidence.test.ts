@@ -14,7 +14,7 @@ describe("PDF-EXPORT-REALDOC-E.5.9 retained Form/API parity evidence", () => {
       "## Privacy Boundary",
       "## HTTP Composition",
       "## Explicitly Not Changed",
-      "## Next Phase",
+      "## Current Status",
     ]) expect(doc).toContain(section)
 
     expect(doc).toContain("`canonicalContentFingerprint`")

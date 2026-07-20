@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 const read = (relativePath: string): string => readFileSync(new URL(relativePath, import.meta.url), "utf8")
 
 describe("PDF-EXPORT-REALDOC-E.6.1 durable admission handoff", () => {
-  it("locks durable protected replay and keeps later lifecycle work pending", () => {
+  it("locks durable protected replay and points to accepted later lifecycle work", () => {
     const doc = read("../../docs/PDF_EXPORT_REALDOC_DURABLE_ADMISSION.md")
 
     for (const section of [
@@ -13,10 +13,10 @@ describe("PDF-EXPORT-REALDOC-E.6.1 durable admission handoff", () => {
       "## Integrity",
       "## Transaction And Replay",
       "## Accepted Evidence",
-      "## Remaining E.6",
+      "## Subsequent E.6 (Accepted)",
       "## Explicitly Not Changed",
       "## Verification",
-      "## Next Phase",
+      "## Current Status",
     ]) expect(doc).toContain(section)
 
     expect(doc).toContain("Status: `PDF-EXPORT-REALDOC-E.6.1` accepted")

@@ -75,10 +75,10 @@ widening their public schemas.
   and
 - no production activation.
 
-## Next Phase
+## Current Status
 
 `PDF-EXPORT-REALDOC-E.6.1` is now accepted in
 `docs/PDF_EXPORT_REALDOC_DURABLE_ADMISSION.md`. It proves durable protected
-admission and fresh-process replay. E.6.2 next owns durable
-operation/lifecycle/artifact reconstruction, followed by Editor reconnect in
-E.6.3. Production remains NO-GO.
+admission and fresh-process replay. E.6.2 operation/lifecycle/artifact
+reconstruction and E.6.3 Editor reconnect are now accepted in
+`docs/PDF_EXPORT_REALDOC_DURABLE_LIFECYCLE.md`. Production remains NO-GO.

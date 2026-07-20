@@ -28,7 +28,7 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.6 Backend DocGen handoff", () => {
       "## PASS",
       "## RISK",
       "## UNKNOWN",
-      "## Next Phase",
+      "## Next Decision",
     ]) expect(doc).toContain(section)
 
     expect(doc).toMatch(/exact Published Structure Version plus caller-owned data/)
