@@ -85,4 +85,5 @@ The complete 200-page source is not accepted by this evidence. It remains
 
 `PDF-EXPORT-REALDOC-E.5.7` now accepts a separate immutable Draft Preview
 identity and admission path without reusing Published Structure identity for
-draft facts. E.5.8 next owns complete lifecycle UX. Production remains NO-GO.
+draft facts. E.5.8 now accepts complete local lifecycle UX; E.5.9 next owns
+Form/API parity. Production remains NO-GO.

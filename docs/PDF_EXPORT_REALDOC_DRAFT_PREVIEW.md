@@ -83,6 +83,6 @@ remains separately owned.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.8` owns complete loading, failure, cancel, retry,
-diagnostic navigation, large-input performance, and download lifecycle UX.
-E.5.9 owns Form/API parity evidence. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.8` now accepts complete loading, failure, cancel, retry,
+diagnostic navigation, bounded large-input interaction, and download lifecycle
+UX. E.5.9 next owns Form/API parity evidence. Production remains NO-GO.

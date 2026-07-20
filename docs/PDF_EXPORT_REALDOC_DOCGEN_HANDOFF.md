@@ -350,7 +350,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.5.6 adds Published Preview over E.3/E.4. Accepted for local development.
 - E.5.7 adds separate immutable Draft Preview identity and admission. Accepted
   for local development.
-- E.5.8 and E.5.9 add lifecycle UX and Form/API parity evidence.
+- E.5.8 adds lifecycle recovery, diagnostic navigation, and bounded large-input
+  UX. Accepted for local development.
+- E.5.9 adds Form/API parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -404,8 +406,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.7` now accepts a separate immutable Draft Preview
-identity, value-free context, and admission path before the trusted
-compatibility bridge reuses E.3 validation and E.4 artifact lifecycle. The
-local registry does not yet compile arbitrary live Editor drafts. E.5.8 next
-owns lifecycle and large-input UX. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.8` now accepts complete local Preview lifecycle and
+large-input UX over the existing E.3/E.4 routes. The same-process real-document
+harness uses a bounded dispatch window so pending cancellation is observable;
+the default and production schedulers remain unchanged. E.5.9 next owns
+Form/API canonical parity. Production remains NO-GO.

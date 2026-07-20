@@ -71,6 +71,8 @@ export interface FlowDocBackendRealdocE56LocalRuntimeV1 {
   close(): Promise<void>
 }
 
+export const REALDOC_LOCAL_OPERATION_DISPATCH_DELAY_MS = 10_000
+
 function prepare(coreRoot: string, semanticDirectory: string): FlowDocBackendRealdocE56PreparedInputV1 {
   const command = resolve(
     coreRoot,
@@ -310,7 +312,12 @@ export function createFlowDocBackendRealdocE56LocalRuntimeV1(input: {
 
   const schedule = (operationId: string) => {
     if (closing) return
-    const work = new Promise<void>((resolveDelay) => setTimeout(resolveDelay, 0))
+    // Leave the local HTTP listener one bounded turn to return 202 before the
+    // evidence renderer can occupy the process. This makes cancellation and
+    // status controls observable without changing the production scheduler.
+    const work = new Promise<void>((resolveDelay) => (
+      setTimeout(resolveDelay, REALDOC_LOCAL_OPERATION_DISPATCH_DELAY_MS)
+    ))
       .then(() => executeOperation(operationId))
       .finally(() => activeWork.delete(work))
     activeWork.add(work)
