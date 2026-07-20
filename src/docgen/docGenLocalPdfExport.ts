@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto"
 import {
   createVNextPdfExportRequestV1,
+  createVNextPublishedStructureCanonicalContentFingerprintV1,
   type VNextPdfExportProductionPolicyV1,
   type VNextPdfExportRequestV1,
   type VNextPdfExportSourceIdentityV1,
@@ -201,6 +202,8 @@ function verifyProtectedRecord(record: FlowDocBackendDocGenLocalProtectedAdmissi
     recordFingerprint !== fingerprint(recordFacts)
     || receiptFingerprint !== fingerprint(receiptFacts)
     || record.receipt.canonicalInputFingerprint !== fingerprint(record.canonicalInput)
+    || record.receipt.canonicalContentFingerprint
+      !== createVNextPublishedStructureCanonicalContentFingerprintV1(record.canonicalInput)
     || record.receipt.instance.instanceId !== record.canonicalInput.dataSnapshot.instance.instanceId
     || record.receipt.instance.revision !== record.canonicalInput.dataSnapshot.instance.revision
     || record.receipt.structure.structureId !== record.receipt.instance.structureVersion.structureId

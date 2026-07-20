@@ -85,4 +85,6 @@ remains separately owned.
 
 `PDF-EXPORT-REALDOC-E.5.8` now accepts complete loading, failure, cancel, retry,
 diagnostic navigation, bounded large-input interaction, and download lifecycle
-UX. E.5.9 next owns Form/API parity evidence. Production remains NO-GO.
+UX. E.5.9 now accepts Form/API canonical-content parity while Draft remains
+explicitly non-Published. E.6 next owns cross-repo restart/failure acceptance.
+Production remains NO-GO.

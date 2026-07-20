@@ -1,0 +1,55 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.5.9",
+  "status": "accepted",
+  "source": {
+    "adaptedPayloadByteLength": 749929,
+    "requirementCount": 10,
+    "screenshotCount": 7,
+    "projectionFingerprint": "sha256:943231f2eba9d572c3c25b15eaf263cd122688f42da8231a71784a5858f08eb8"
+  },
+  "directForm": {
+    "lane": "direct",
+    "mapping": "not-required",
+    "runtimeValidation": "run-valid",
+    "canonicalInputFingerprint": "sha256:4108e5ccdb85b142f1a6b1b4821039c7fc189e22adaa98db7b103e10677ea95b",
+    "diagnosticErrorCount": 0,
+    "diagnosticWarningCount": 0
+  },
+  "adaptedApi": {
+    "lane": "adapted",
+    "mapping": "executed",
+    "runtimeValidation": "run-valid",
+    "canonicalInputFingerprint": "sha256:d5a3fe4aaa05d8e96ef818be1d3760ae753b28e1e3f6f9d3789e1e408d582d5a",
+    "diagnosticErrorCount": 0,
+    "diagnosticWarningCount": 3
+  },
+  "parity": {
+    "canonicalContentFingerprint": "sha256:f21638952df9a5405196b2b797c882858fad79c8ee1e8d9d2179ef8bc868e1ad",
+    "sameCanonicalContent": true,
+    "distinctInstanceIdentity": true,
+    "distinctCanonicalInputIdentity": true
+  },
+  "artifacts": {
+    "direct": {
+      "pageCount": 10,
+      "byteLength": 1417544,
+      "sha256": "1590da60b3528636be744012dd14147c98f5df09ff2d16e7591d41957db7ff42"
+    },
+    "adapted": {
+      "pageCount": 10,
+      "byteLength": 1417544,
+      "sha256": "b340717db066f5294c0b16f79d9f2219cd1bf8880bfc12279ef20f88ed7fa76f"
+    },
+    "sameBytes": false
+  },
+  "contracts": {
+    "formUsesDirectCanonicalAdmission": true,
+    "apiUsesTrustedMapping": true,
+    "backendValidationShared": true,
+    "browserMapper": false,
+    "mappedValuesReturnedToEditor": false,
+    "authoredStructureMutated": false,
+    "productionBinding": false
+  }
+}

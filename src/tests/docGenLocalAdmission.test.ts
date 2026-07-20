@@ -117,6 +117,9 @@ describe("PDF export REALDOC-E.3 local DocGen admission", () => {
     })
     if (direct.status !== "created" || adapted.status !== "created") throw new Error("parity admission failed")
 
+    expect(direct.receipt.canonicalInputFingerprint).not.toBe(adapted.receipt.canonicalInputFingerprint)
+    expect(direct.receipt.canonicalContentFingerprint).toBe(adapted.receipt.canonicalContentFingerprint)
+
     const directRecord = await directFixture.repository.readByAdmissionId(direct.receipt.admissionId)
     const adaptedRecord = await adaptedFixture.repository.readByAdmissionId(adapted.receipt.admissionId)
     expect(adaptedRecord?.canonicalInput.dataSnapshot.data).toEqual(directRecord?.canonicalInput.dataSnapshot.data)

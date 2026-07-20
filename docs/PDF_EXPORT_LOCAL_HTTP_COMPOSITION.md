@@ -223,4 +223,7 @@ mount that context. E.5.7 now adds a separate optional Draft context and
 admission, validates an immutable local snapshot, and only then reuses the same
 generation validation and artifact path. The default composition still mounts
 neither Preview context. E.5.8 now accepts lifecycle UX hardening in the
-optional real-document composition; E.5.9 next owns Form/API parity.
+optional real-document composition. E.5.9 now accepts direct Form and adapted
+API canonical-content parity through the same protected admission/validation
+bridge; the default composition still mounts neither Preview context. E.6 next
+owns restart and cross-repo lifecycle acceptance.

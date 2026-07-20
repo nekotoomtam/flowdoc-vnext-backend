@@ -52,7 +52,7 @@ describe("PDF-EXPORT-REALDOC-E.0-E.5.6 Backend DocGen handoff", () => {
     expect(doc).toMatch(/cannot claim secure per-user scoping/)
     expect(doc).toContain("E.5.7 adds separate immutable Draft Preview identity and admission")
     expect(doc).toContain("E.5.8 adds lifecycle recovery")
-    expect(doc).toContain("E.5.9 next owns")
+    expect(doc).toContain("E.5.9 adds Form/API canonical-content parity")
     expect(doc).toMatch(/No Backend contract or implementation changes in E\.5\.3/)
     expect(doc).toMatch(/No Backend contract or implementation changes in E\.5\.4/)
     expect(doc).toMatch(/No Backend contract or implementation changes in E\.5\.5/)

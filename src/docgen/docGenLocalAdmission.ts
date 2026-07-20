@@ -6,6 +6,7 @@ import {
   VNextPublishedStructureMappingProfileV1Schema,
   VNextPublishedStructureVersionRefV1Schema,
   VNextTableCollectionValueV1Schema,
+  createVNextPublishedStructureCanonicalContentFingerprintV1,
   createVNextPublishedStructureJsonPayloadDescriptorV1,
   runVNextPublishedStructureGenerationRuntimeV1,
   sameVNextPublishedStructureVersionRefV1,
@@ -140,6 +141,7 @@ export interface FlowDocBackendDocGenLocalAdmissionReceiptV1 {
   instance: VNextDocumentInstanceIdentityV1
   inputFingerprint: string
   canonicalInputFingerprint: string
+  canonicalContentFingerprint: string
   mappingProfile: {
     mappingProfileId: string
     mappingProfileVersion: number
@@ -702,6 +704,7 @@ export function createFlowDocBackendDocGenLocalAdmissionServiceV1(input: {
       instance: clone(instance),
       inputFingerprint: requestFingerprint,
       canonicalInputFingerprint: runtime.canonicalInputFingerprint,
+      canonicalContentFingerprint: runtime.canonicalContentFingerprint,
       mappingProfile: clone(runtime.mappingProfile),
       assets: {
         registryFingerprint: assetAdmission.registryFingerprint,

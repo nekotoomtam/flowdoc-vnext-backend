@@ -1,6 +1,8 @@
 import { z } from "zod"
 import {
+  DataSnapshotV2Schema,
   ImageAssetRegistryV1Schema,
+  VNextTableCollectionValueV1Schema,
   VNextDraftStructurePreviewSnapshotV1Schema,
   VNextPublishedStructureMappingProfileV1Schema,
   type ImageAssetRegistryV1,
@@ -35,15 +37,22 @@ export const FlowDocBackendDocGenLocalDraftPreviewAdmissionRequestV1Schema = z.o
     snapshotId: NonBlankIdSchema,
     snapshotFingerprint: FingerprintSchema,
   }).strict(),
-  input: z.object({
-    kind: z.literal("adapted-json"),
-    mappingProfile: z.object({
-      mappingProfileId: NonBlankIdSchema,
-      mappingProfileVersion: z.number().int().positive(),
-      profileFingerprint: FingerprintSchema,
+  input: z.discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("canonical-data"),
+      data: DataSnapshotV2Schema,
+      collections: z.record(NonBlankIdSchema, VNextTableCollectionValueV1Schema),
     }).strict(),
-    payloadText: z.string().min(1),
-  }).strict(),
+    z.object({
+      kind: z.literal("adapted-json"),
+      mappingProfile: z.object({
+        mappingProfileId: NonBlankIdSchema,
+        mappingProfileVersion: z.number().int().positive(),
+        profileFingerprint: FingerprintSchema,
+      }).strict(),
+      payloadText: z.string().min(1),
+    }).strict(),
+  ]),
 }).strict()
 
 export type FlowDocBackendDocGenLocalDraftPreviewAdmissionRequestV1 = z.infer<
@@ -292,12 +301,15 @@ export function createFlowDocBackendDocGenLocalDraftPreviewAdmissionServiceV1(in
         status: "blocked", receipt: null,
         issues: [issue("draft-preview-snapshot-not-found", "snapshot", "exact immutable Draft Preview snapshot is not trusted")],
       }
-      const selected = context.mappingProfiles.find(({ profile }) => (
-        profile.mappingProfileId === parsed.data.input.mappingProfile.mappingProfileId
-        && profile.mappingProfileVersion === parsed.data.input.mappingProfile.mappingProfileVersion
-        && profile.profileFingerprint === parsed.data.input.mappingProfile.profileFingerprint
-      ))
-      if (selected == null) return {
+      const previewInput = parsed.data.input
+      const selected = previewInput.kind === "adapted-json"
+        ? context.mappingProfiles.find(({ profile }) => (
+            profile.mappingProfileId === previewInput.mappingProfile.mappingProfileId
+            && profile.mappingProfileVersion === previewInput.mappingProfile.mappingProfileVersion
+            && profile.profileFingerprint === previewInput.mappingProfile.profileFingerprint
+          )) ?? null
+        : null
+      if (previewInput.kind === "adapted-json" && selected == null) return {
         status: "blocked", receipt: null,
         issues: [issue("draft-preview-mapping-profile-not-found", "input.mappingProfile", "exact Draft Preview mapping profile is not trusted")],
       }
@@ -313,14 +325,20 @@ export function createFlowDocBackendDocGenLocalDraftPreviewAdmissionServiceV1(in
           kind: "docgen-local-admission-request",
           structure: context.executionBridge.structure,
           assets: context.admission.assets,
-          input: {
-            kind: "adapted-json",
-            mappingProfile: {
-              mappingProfileId: selected.profile.mappingProfileId,
-              mappingProfileVersion: selected.profile.mappingProfileVersion,
-            },
-            payloadText: parsed.data.input.payloadText,
-          },
+          input: previewInput.kind === "canonical-data"
+            ? {
+                kind: "canonical-data" as const,
+                data: previewInput.data,
+                collections: previewInput.collections,
+              }
+            : {
+                kind: "adapted-json" as const,
+                mappingProfile: {
+                  mappingProfileId: selected!.profile.mappingProfileId,
+                  mappingProfileVersion: selected!.profile.mappingProfileVersion,
+                },
+                payloadText: previewInput.payloadText,
+              },
         },
       })
       if (result.status !== "created" && result.status !== "replayed") return {

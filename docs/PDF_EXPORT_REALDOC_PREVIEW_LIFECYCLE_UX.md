@@ -49,7 +49,7 @@ can drive those boundaries through the real-document local composition.
 - no public route or response schema change;
 - no default application-server mount;
 - no durable Draft or protected generation repository;
-- no Form admission or Form/API parity claim;
+- no Form admission or Form/API parity claim in E.5.8 itself;
 - no SQLite scheduler change or new 240-page result;
 - no Module 2 or complete 200-page export; and
 - no production identity, tenancy, provider, deployment, or activation.
@@ -67,5 +67,7 @@ all three repositories.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.9` owns Form/API canonical parity. E.6 then owns full
-cross-repo lifecycle acceptance. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.9` is now accepted in
+`docs/PDF_EXPORT_REALDOC_FORM_API_PARITY.md`. Direct Form and adapted API lanes
+share canonical content while retaining separate instance identities. E.6 now
+owns full cross-repo lifecycle acceptance. Production remains NO-GO.

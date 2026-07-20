@@ -18,6 +18,7 @@ import {
   DOCGEN_LOCAL_IDENTITY,
   createDocGenLocalAdmissionFixture,
   docGenLocalDataContract,
+  docGenLocalDirectRequest,
   docGenLocalMappingProfile,
   docGenLocalStructureRef,
 } from "./helpers/docGenLocalFixture.js"
@@ -110,6 +111,16 @@ function request(payloadText = JSON.stringify({ title: "Draft value", name: "Dra
   }
 }
 
+function directRequest() {
+  const value = snapshot()
+  return {
+    contractVersion: 1,
+    kind: "docgen-local-draft-preview-admission-request",
+    snapshot: { snapshotId: value.snapshotId, snapshotFingerprint: value.snapshotFingerprint },
+    input: docGenLocalDirectRequest({ title: "Draft value", name: "Draft item", amount: 8 }).input,
+  }
+}
+
 describe("PDF export REALDOC-E.5.7 Draft Preview", () => {
   it("retains a separate immutable draft target and rejects stale or cross-lineage bindings", () => {
     const value = registry().resolve({ documentId: "document:preview-qa", documentRevision: 3 })
@@ -177,6 +188,28 @@ describe("PDF export REALDOC-E.5.7 Draft Preview", () => {
       callerIdempotencyKey: "draft-preview:test:missing",
       request: { ...request(), snapshot: { ...request().snapshot, snapshotFingerprint: `sha256:${"f".repeat(64)}` } },
     })).resolves.toMatchObject({ status: "blocked", issues: [{ code: "draft-preview-snapshot-not-found" }] })
+  })
+
+  it("admits direct Form-shaped canonical data through the same draft bridge", async () => {
+    const base = createDocGenLocalAdmissionFixture()
+    const service = createFlowDocBackendDocGenLocalDraftPreviewAdmissionServiceV1({
+      registry: registry(),
+      admission: base.admission,
+    })
+    const created = await service.admit({
+      identity: DOCGEN_LOCAL_IDENTITY,
+      callerIdempotencyKey: "draft-preview:test:direct",
+      request: directRequest(),
+    })
+    expect(created.status).toBe("created")
+    if (created.status !== "created") throw new Error(JSON.stringify(created.issues))
+    expect(created.receipt.generation).toMatchObject({
+      lane: "direct",
+      mappingProfile: null,
+      execution: { mapping: "not-required", runtimeValidation: "run-valid" },
+      contracts: { canonicalBusinessDataExposed: false },
+    })
+    expect(JSON.stringify(created.receipt)).not.toContain("Draft value")
   })
 
   it("mounts neither route by default and protects exact context/admission pins", async () => {

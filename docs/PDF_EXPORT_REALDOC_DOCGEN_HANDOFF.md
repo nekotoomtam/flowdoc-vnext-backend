@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.6` local Published Preview binding accepted
-after the E.5.5 JSON/mapping preparation. Durable generation storage, default
-application mounting, and production behavior remain inactive; production
-remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.9` local Form/API parity accepted after
+Published Preview, Draft Preview, and lifecycle UX. Durable generation storage,
+default application mounting, and production behavior remain inactive;
+production remains NO-GO.
 
 ## Direction
 
@@ -352,7 +352,8 @@ the DocGen admission/resolution owner before reusing those pieces.
   for local development.
 - E.5.8 adds lifecycle recovery, diagnostic navigation, and bounded large-input
   UX. Accepted for local development.
-- E.5.9 adds Form/API parity evidence.
+- E.5.9 adds Form/API canonical-content parity while preserving distinct
+  instance identities. Accepted for local development.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -381,6 +382,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 - Draft Preview validates a trusted immutable local snapshot through its own
   admission before internal reuse of shared generation validation and artifact
   lifecycle. It returns no mapped values and denies Published/API parity.
+- Generated Form and adapted API admission converge on one canonical content
+  fingerprint while retaining separate canonical-input and artifact identities.
 
 ## RISK
 
@@ -406,8 +409,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.8` now accepts complete local Preview lifecycle and
-large-input UX over the existing E.3/E.4 routes. The same-process real-document
-harness uses a bounded dispatch window so pending cancellation is observable;
-the default and production schedulers remain unchanged. E.5.9 next owns
-Form/API canonical parity. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.9` now accepts direct Form/adapted API canonical-content
+parity over the shared E.3/E.4 validation and artifact path. The content
+fingerprint does not replace instance-bound replay or artifact identity. E.6
+next owns restart, reconstruction, failure, and lifecycle acceptance. The
+default and production schedulers remain unchanged. Production remains NO-GO.
