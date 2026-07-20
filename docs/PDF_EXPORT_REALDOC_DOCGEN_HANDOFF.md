@@ -348,7 +348,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.5.5 adds temporary JSON/mapping preparation. Accepted without Backend
   changes.
 - E.5.6 adds Published Preview over E.3/E.4. Accepted for local development.
-- E.5.7 through E.5.9 add Draft Preview, lifecycle UX, and parity evidence.
+- E.5.7 adds separate immutable Draft Preview identity and admission. Accepted
+  for local development.
+- E.5.8 and E.5.9 add lifecycle UX and Form/API parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
@@ -374,6 +376,9 @@ the DocGen admission/resolution owner before reusing those pieces.
   lifecycle and verified download without fixture substitution.
 - Published Preview uses that same E.3/E.4 path and returns no mapped business
   values to Editor.
+- Draft Preview validates a trusted immutable local snapshot through its own
+  admission before internal reuse of shared generation validation and artifact
+  lifecycle. It returns no mapped values and denies Published/API parity.
 
 ## RISK
 
@@ -399,7 +404,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.6` now binds Published Preview to the accepted E.3/E.4
-path with one optional value-free context and an isolated local evidence
-runtime. `PDF-EXPORT-REALDOC-E.5.7` next owns a separate immutable Draft Preview
-identity and admission path. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.7` now accepts a separate immutable Draft Preview
+identity, value-free context, and admission path before the trusted
+compatibility bridge reuses E.3 validation and E.4 artifact lifecycle. The
+local registry does not yet compile arbitrary live Editor drafts. E.5.8 next
+owns lifecycle and large-input UX. Production remains NO-GO.

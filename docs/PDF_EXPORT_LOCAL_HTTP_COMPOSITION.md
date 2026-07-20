@@ -219,4 +219,7 @@ accepts temporary Editor Form state, and E.5.5 accepts JSON/mapping preparation
 without calling this composition. E.5.6 now adds a separate optional Published
 Preview context and isolated local runtime over the same E.3 admission and E.4
 artifact path. The accepted default composition remains unchanged and does not
-mount that context. E.5.7 next owns Draft Preview.
+mount that context. E.5.7 now adds a separate optional Draft context and
+admission, validates an immutable local snapshot, and only then reuses the same
+generation validation and artifact path. The default composition still mounts
+neither Preview context. E.5.8 next owns lifecycle UX hardening.

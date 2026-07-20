@@ -10,6 +10,7 @@ import type {
   VNextPublishedStructureMappingRuntimeV1,
   VNextPublishedStructureTestInputProjectionV1,
 } from "@flowdoc/vnext-core"
+import { createVNextDraftStructurePreviewSnapshotV1 } from "@flowdoc/vnext-core"
 import {
   createFlowDocBackendDocGenInMemoryAdmissionRepositoryV1,
   createFlowDocBackendDocGenInMemoryTrustedAssetRegistryV1,
@@ -20,6 +21,10 @@ import {
 } from "../docgen/docGenLocalAdmission.js"
 import { createFlowDocBackendDocGenLocalArtifactBindingV1 } from "../docgen/docGenLocalPdfExport.js"
 import { createFlowDocBackendDocGenLocalPublishedPreviewRegistryV1 } from "../docgen/docGenLocalPublishedPreview.js"
+import {
+  createFlowDocBackendDocGenLocalDraftPreviewAdmissionServiceV1,
+  createFlowDocBackendDocGenLocalDraftPreviewRegistryV1,
+} from "../docgen/docGenLocalDraftPreview.js"
 import { createFlowDocBackendDocGenLocalUatArtifactMaterializerV1 } from "../docgen/docGenLocalUatArtifact.js"
 import { createInMemoryFlowDocBackendPdfExportArtifactPersistenceRepositoryV1 } from "../pdfExport/pdfExportArtifactPersistence.js"
 import { createFlowDocBackendPdfExportFileContentAddressedStoreV1 } from "../pdfExport/pdfExportContentAddressedStore.js"
@@ -194,6 +199,36 @@ export function createFlowDocBackendRealdocE56LocalRuntimeV1(input: {
     mappingProfiles: [{ label: "69C semantic JSON", profile: prepared.mappingProfile }],
     assets: prepared.request.assets as ImageAssetRegistryV1,
   }])
+  const draftSnapshot = createVNextDraftStructurePreviewSnapshotV1({
+    snapshotId: "draft-preview:realdoc-e5-7-69c-section-2-1:0",
+    draft: {
+      contractVersion: 1,
+      kind: "structure-definition-draft",
+      structureId: prepared.projection.owner.structureId,
+      draftId: "draft:realdoc-e5-7-69c-section-2-1",
+      revision: FLOWDOC_BACKEND_REALDOC_E56_AUTHORING_DOCUMENT_REVISION,
+    },
+    authoring: {
+      documentId: FLOWDOC_BACKEND_REALDOC_E56_AUTHORING_DOCUMENT_ID,
+      documentRevision: FLOWDOC_BACKEND_REALDOC_E56_AUTHORING_DOCUMENT_REVISION,
+    },
+    sourcePackage: {
+      packageId: "package:realdoc-e5-7-69c-section-2-1",
+      packageVersion: 3,
+      documentVersion: 4,
+      packageFingerprint: prepared.evidence.sourceBundleFingerprint,
+    },
+  })
+  const draftPreviewContexts = createFlowDocBackendDocGenLocalDraftPreviewRegistryV1([{
+    snapshot: draftSnapshot,
+    projection: prepared.projection,
+    mappingProfiles: [{ label: "69C semantic JSON", profile: prepared.mappingProfile }],
+    assets: prepared.request.assets as ImageAssetRegistryV1,
+  }])
+  const draftPreviewAdmission = createFlowDocBackendDocGenLocalDraftPreviewAdmissionServiceV1({
+    registry: draftPreviewContexts,
+    admission,
+  })
   const binding = createFlowDocBackendDocGenLocalArtifactBindingV1({
     repository: admissionRepository,
     assets,
@@ -314,6 +349,12 @@ export function createFlowDocBackendRealdocE56LocalRuntimeV1(input: {
       authenticator,
       authorizer: { authorize },
       registry: previewContexts,
+    },
+    draftPreviewOptions: {
+      authenticator,
+      authorizer: { authorize },
+      registry: draftPreviewContexts,
+      admission: draftPreviewAdmission,
     },
   })
   let listenerOrigin: string | null = null

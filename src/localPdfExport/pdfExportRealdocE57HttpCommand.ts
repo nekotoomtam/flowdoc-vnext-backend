@@ -28,7 +28,7 @@ try {
   const evidence = await runtime.start()
   process.stdout.write(`${JSON.stringify({
     status: "ready",
-    phaseId: "PDF-EXPORT-REALDOC-E.5.6",
+    phaseId: "PDF-EXPORT-REALDOC-E.5.7",
     listenerHost: evidence.listenerHost,
     listenerPort: evidence.listenerPort,
     docGenAdmissionMounted: evidence.docGenAdmissionMounted,

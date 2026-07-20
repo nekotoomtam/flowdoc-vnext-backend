@@ -1,0 +1,66 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.5.7",
+  "status": "accepted",
+  "target": {
+    "kind": "draft-preview",
+    "draft": {
+      "contractVersion": 1,
+      "kind": "structure-definition-draft",
+      "structureId": "structure-uat-record",
+      "draftId": "draft:realdoc-e5-7-69c-section-2-1",
+      "revision": 0
+    },
+    "snapshotId": "draft-preview:realdoc-e5-7-69c-section-2-1:0",
+    "snapshotFingerprint": "sha256:563a023d6c25c04df1d55ccd7a3e2d0f905656c4bd50b8f29172553f44ef4a4f",
+    "sourcePackageFingerprint": "sha256:46fac437de79e9b5b044345ca97433535245bf53b1764d5df4b01e25279096eb",
+    "immutableSnapshot": true,
+    "publishedStructureVersion": false,
+    "publishedApiParity": false
+  },
+  "context": {
+    "authoring": {
+      "documentId": "realdoc-e5-6-published-preview",
+      "documentRevision": 0
+    },
+    "contextFingerprint": "sha256:5f7995aa32162cff2d2b26992d4f931381d156ffe52ee6d98c4679642006538e",
+    "projectionFingerprint": "sha256:943231f2eba9d572c3c25b15eaf263cd122688f42da8231a71784a5858f08eb8",
+    "mappingProfileFingerprint": "sha256:6c9735d528979c6be56c2a3565f7513165283f66c7f4c4b2dd0eb83a21a14cd7",
+    "businessValuesIncluded": false
+  },
+  "admission": {
+    "separateDraftAdmission": true,
+    "sharedGenerationValidation": true,
+    "sharedArtifactLifecycle": true,
+    "lane": "adapted",
+    "mapping": "executed",
+    "runtimeValidation": "run-valid",
+    "canonicalInputFingerprint": "sha256:7c1a9cea0c2523f1e4f8645bcbbd0e73c9c15b91b29aef2305e736d427d374c6",
+    "diagnosticErrorCount": 0,
+    "diagnosticWarningCount": 3,
+    "canonicalBusinessDataExposed": false,
+    "rawPayloadRetained": false
+  },
+  "artifact": {
+    "state": "completed",
+    "pageCount": 10,
+    "byteLength": 1417544,
+    "sha256": "1d5af8341ec7a7faf10b0af5d86b217405cdd458df1331277da2115cc95fe372",
+    "verifiedDownload": true
+  },
+  "scale": {
+    "acceptedSlicePages": 10,
+    "fullDocumentPagesTested": false,
+    "fullDocumentTargetPages": 200,
+    "fullDocumentPhase": "PDF-EXPORT-REALDOC-G"
+  },
+  "contracts": {
+    "separateFromPublishedAdmissionRoute": true,
+    "callerSuppliedPublishedStructureIdentity": false,
+    "browserMapper": false,
+    "mappedValuesReturnedToEditor": false,
+    "publishedApiParity": false,
+    "defaultApplicationServerMounted": false,
+    "productionBinding": false
+  }
+}

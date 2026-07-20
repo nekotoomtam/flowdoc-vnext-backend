@@ -17,6 +17,10 @@ import {
   createFlowDocBackendDocGenLocalPublishedPreviewHttpHandlerV1,
   type FlowDocBackendDocGenLocalPublishedPreviewHttpHandlerOptionsV1,
 } from "../docgen/docGenLocalPublishedPreviewHttpHandler.js"
+import {
+  createFlowDocBackendDocGenLocalDraftPreviewHttpHandlerV1,
+  type FlowDocBackendDocGenLocalDraftPreviewHttpHandlerOptionsV1,
+} from "../docgen/docGenLocalDraftPreviewHttpHandler.js"
 
 export const FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_HTTP_SERVER_V1_SOURCE =
   "flowdoc-backend-pdf-export-local-http-server" as const
@@ -37,6 +41,7 @@ export interface FlowDocBackendPdfExportLocalCompositionEvidenceV1 {
   corsEnabled: false
   docGenAdmissionMounted: boolean
   publishedPreviewContextMounted: boolean
+  draftPreviewMounted: boolean
   productionBinding: false
   fingerprint: string
 }
@@ -64,6 +69,7 @@ function evidence(input: {
   port: number | null
   docGenAdmissionMounted: boolean
   publishedPreviewContextMounted: boolean
+  draftPreviewMounted: boolean
 }): FlowDocBackendPdfExportLocalCompositionEvidenceV1 {
   const facts = {
     source: FLOWDOC_BACKEND_PDF_EXPORT_LOCAL_HTTP_SERVER_V1_SOURCE,
@@ -81,6 +87,7 @@ function evidence(input: {
     corsEnabled: false as const,
     docGenAdmissionMounted: input.docGenAdmissionMounted,
     publishedPreviewContextMounted: input.publishedPreviewContextMounted,
+    draftPreviewMounted: input.draftPreviewMounted,
     productionBinding: false as const,
   }
   return { ...facts, fingerprint: flowDocBackendPdfExportFingerprintV1(facts) }
@@ -102,6 +109,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   eligibilityOptions?: FlowDocBackendPdfExportLocalEligibilityHttpHandlerOptionsV1
   docGenAdmissionOptions?: FlowDocBackendDocGenLocalHttpHandlerOptionsV1
   publishedPreviewContextOptions?: FlowDocBackendDocGenLocalPublishedPreviewHttpHandlerOptionsV1
+  draftPreviewOptions?: FlowDocBackendDocGenLocalDraftPreviewHttpHandlerOptionsV1
 }): FlowDocBackendPdfExportLocalHttpServerV1 {
   if (input.host !== "127.0.0.1") throw new Error("local PDF HTTP listener must use 127.0.0.1")
   if (!Number.isSafeInteger(input.port) || input.port < 0 || input.port > 65_535) {
@@ -117,6 +125,9 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
   const publishedPreviewContextHandler = input.publishedPreviewContextOptions == null
     ? null
     : createFlowDocBackendDocGenLocalPublishedPreviewHttpHandlerV1(input.publishedPreviewContextOptions)
+  const draftPreviewHandler = input.draftPreviewOptions == null
+    ? null
+    : createFlowDocBackendDocGenLocalDraftPreviewHttpHandlerV1(input.draftPreviewOptions)
   let mounted = false
   let mountedPort: number | null = null
   let startPromise: Promise<FlowDocBackendPdfExportLocalCompositionEvidenceV1> | null = null
@@ -133,6 +144,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
       }
       if (docGenAdmissionHandler != null && await docGenAdmissionHandler(request, response)) return
       if (publishedPreviewContextHandler != null && await publishedPreviewContextHandler(request, response)) return
+      if (draftPreviewHandler != null && await draftPreviewHandler(request, response)) return
       if (eligibilityHandler != null && await eligibilityHandler(request, response)) return
       if (await handler(request, response)) return
       writeJson(response, 404, { status: "not-found" })
@@ -148,6 +160,7 @@ export function createFlowDocBackendPdfExportLocalHttpServerV1(input: {
     port: mountedPort,
     docGenAdmissionMounted: docGenAdmissionHandler != null,
     publishedPreviewContextMounted: publishedPreviewContextHandler != null,
+    draftPreviewMounted: draftPreviewHandler != null,
   }))
 
   return {

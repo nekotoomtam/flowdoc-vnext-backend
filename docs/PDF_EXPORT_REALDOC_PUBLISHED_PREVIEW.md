@@ -79,10 +79,10 @@ The complete 200-page source is not accepted by this evidence. It remains
 - no raw payload or mapped canonical values returned to Editor;
 - no browser mapper;
 - no Form draft admission; and
-- no Draft Preview identity.
+- no durable Draft Preview repository or arbitrary live-draft compiler.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.7` must add a separate immutable Draft Preview identity
-and admission path. It must not reuse Published Structure identity for draft
-facts. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.7` now accepts a separate immutable Draft Preview
+identity and admission path without reusing Published Structure identity for
+draft facts. E.5.8 next owns complete lifecycle UX. Production remains NO-GO.

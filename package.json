@@ -23,6 +23,8 @@
     "pdf-export-realdoc-e4:verify": "tsx src/localPdfExport/pdfExportRealdocE4Evidence.ts",
     "pdf-export-realdoc-e56:http": "tsx src/localPdfExport/pdfExportRealdocE56HttpCommand.ts",
     "pdf-export-realdoc-e56:verify": "tsx src/localPdfExport/pdfExportRealdocE56Evidence.ts",
+    "pdf-export-realdoc-e57:http": "tsx src/localPdfExport/pdfExportRealdocE57HttpCommand.ts",
+    "pdf-export-realdoc-e57:verify": "tsx src/localPdfExport/pdfExportRealdocE57Evidence.ts",
     "pdf-export-local:down": "docker compose --env-file .env.local -f docker-compose.pdf-export-local.yml down",
     "pdf-export-local:reset": "tsx --env-file=.env.local src/localPdfExport/pdfExportLocalReset.ts --confirm-reset-local"
   },
