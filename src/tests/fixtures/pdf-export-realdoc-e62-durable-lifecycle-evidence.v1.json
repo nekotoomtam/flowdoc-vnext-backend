@@ -1,0 +1,67 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.6.2",
+  "status": "accepted",
+  "source": {
+    "sourceBundleFingerprint": "sha256:46fac437de79e9b5b044345ca97433535245bf53b1764d5df4b01e25279096eb",
+    "adapterBundleFingerprint": "sha256:c4a552188ef80f6d55e9856266f271f445c354740c383ba03bc6dedf9aa021b7",
+    "requirementCount": 10,
+    "screenshotCount": 7,
+    "adaptedPayloadByteLength": 749929
+  },
+  "admission": {
+    "lane": "adapted",
+    "durablePersistence": true,
+    "receiptFingerprint": "sha256:8c8d9e04c91a6c859c853a8da5cfe6048e50977ae06259d6833dbbb5df94485c",
+    "canonicalInputFingerprint": "sha256:a8ed1357fa9868aba284cb600e8c82b611bb5e186258a2325a85b12a34fb3b2d",
+    "canonicalContentFingerprint": "sha256:f21638952df9a5405196b2b797c882858fad79c8ee1e8d9d2179ef8bc868e1ad",
+    "initialMapCount": 1,
+    "restartReplayMapCount": 0,
+    "rawPayloadRetained": false,
+    "canonicalBusinessDataExposed": false
+  },
+  "restart": {
+    "repositoryOpenCount": 4,
+    "pendingReopen": true,
+    "afterRenderFaultObserved": true,
+    "afterRenderCheckpoint": "before-persist",
+    "beforeRecoveryPersistence": "not-found",
+    "recoveryStatus": "completed",
+    "terminalReopen": true,
+    "initialMaterializationCount": 1,
+    "firstRenderMaterializationCount": 1,
+    "recoveryMaterializationCount": 1,
+    "verifyMaterializationCount": 0
+  },
+  "artifact": {
+    "state": "completed",
+    "pageCount": 10,
+    "byteLength": 1417544,
+    "sha256": "5deed98f1d7b711dfba18e233b6b9d811ebeaf6e4474efd2f55f64ff08b60ac2",
+    "metadataByteLength": 1417544,
+    "metadataSha256": "5deed98f1d7b711dfba18e233b6b9d811ebeaf6e4474efd2f55f64ff08b60ac2",
+    "metadataMatchesDownload": true,
+    "completionFingerprint": "sha256:1fa4685640576827515669c1e435e7d5ed214d384e3aed3f974acd61e00f1b0a",
+    "persistenceFingerprint": "sha256:9e20f29b23e1fc8f8cc198758462e94d48ea16547a0ba8ec1dbb1f6173b301c7",
+    "terminalEventCount": 6,
+    "verifiedDownload": true,
+    "idempotentReplay": true
+  },
+  "scale": {
+    "acceptedSlicePages": 10,
+    "fullDocumentPagesTested": false,
+    "fullDocumentTargetPages": 200,
+    "fullDocumentPhase": "PDF-EXPORT-REALDOC-G"
+  },
+  "contracts": {
+    "protectedAdmissionPersistence": "sqlite",
+    "operationPersistence": "sqlite",
+    "lifecyclePersistence": "sqlite",
+    "artifactMetadataPersistence": "sqlite",
+    "observabilityPersistence": "sqlite",
+    "artifactBytePersistence": "filesystem-content-addressed",
+    "defaultApplicationServerMounted": false,
+    "automaticStartupDiscovery": false,
+    "productionBinding": false
+  }
+}

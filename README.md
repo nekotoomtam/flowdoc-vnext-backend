@@ -148,6 +148,11 @@ Current slice:
   admission repository. Independent-process replay, before/after-commit fault
   recovery, and corruption rejection pass; durable operation/artifact restart,
   default mounting, scale work, and production remain pending.
+- PDF export REALDOC-E.6.2 composes protected admission, operation, lifecycle,
+  artifact metadata, observability, and filesystem content-addressed bytes as
+  one optional durable local bundle. Four-process generic recovery and the
+  exact 10-page 69C after-render recovery pass; automatic startup discovery,
+  Editor reconnect, scale work, and production remain pending.
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

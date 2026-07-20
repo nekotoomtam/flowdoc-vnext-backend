@@ -103,6 +103,7 @@ export interface FlowDocBackendPdfExportRendererAttemptInputV1 {
     transitionId: string
     expectedHeadRevision: number
     checkedAt: string
+    alreadyPassed?: boolean
   }
   beforePersistTransitionId: string
   now(): string
@@ -458,6 +459,7 @@ export async function runFlowDocBackendPdfExportRendererAttemptV1(
     || !Number.isInteger(input.beforeRender.expectedHeadRevision)
     || input.beforeRender.expectedHeadRevision < 0
     || !exactIso(input.beforeRender.checkedAt)
+    || (input.beforeRender.alreadyPassed != null && typeof input.beforeRender.alreadyPassed !== "boolean")
     || !isFlowDocBackendPdfExportBoundedStringV1(input.beforePersistTransitionId)
   ) inputIssues.push(issue(
     "pdf-export-renderer-lifecycle-transition-invalid",
@@ -520,16 +522,43 @@ export async function runFlowDocBackendPdfExportRendererAttemptV1(
     issues: handoffIssues,
   })
 
-  const beforeRender = await input.lifecycleRepository.applyLifecycleTransition({
-    transitionId: input.beforeRender.transitionId,
-    ...operation.scope,
-    operationId: operation.operationId,
-    expectedHeadRevision: input.beforeRender.expectedHeadRevision,
-    transitionAt: input.beforeRender.checkedAt,
-    kind: "pass-checkpoint",
-    claimToken: input.claimToken,
-    nextCheckpoint: "before-persist",
-  })
+  const retainedBeforePersist = input.beforeRender.alreadyPassed === true
+    ? await readLifecycle({ repository: input.lifecycleRepository, operation })
+    : null
+  const beforeRender = retainedBeforePersist == null
+    ? await input.lifecycleRepository.applyLifecycleTransition({
+        transitionId: input.beforeRender.transitionId,
+        ...operation.scope,
+        operationId: operation.operationId,
+        expectedHeadRevision: input.beforeRender.expectedHeadRevision,
+        transitionAt: input.beforeRender.checkedAt,
+        kind: "pass-checkpoint",
+        claimToken: input.claimToken,
+        nextCheckpoint: "before-persist",
+      })
+    : retainedBeforePersist.head != null
+      && retainedBeforePersist.head.status === "claimed"
+      && retainedBeforePersist.head.checkpoint === "before-persist"
+      && retainedBeforePersist.head.claim?.claimToken === input.claimToken
+      && retainedBeforePersist.head.checkpointCheck?.claimToken === input.claimToken
+      ? {
+          status: "idempotent-replay" as const,
+          head: retainedBeforePersist.head,
+          receipt: null,
+          issues: [] as [],
+        }
+      : {
+          status: "blocked" as const,
+          head: retainedBeforePersist.head,
+          receipt: null,
+          issues: retainedBeforePersist.issues.length > 0
+            ? retainedBeforePersist.issues
+            : [issue(
+                "pdf-export-renderer-before-render-recovery-invalid",
+                "lifecycle",
+                "before-render recovery requires the exact retained before-persist checkpoint and live claim",
+              )],
+        }
   if (!["applied", "idempotent-replay"].includes(beforeRender.status)) return terminal({
     status: beforeRender.status === "blocked" && beforeRender.issues.some((entry) => [
       "pdf-export-lifecycle-terminal", "pdf-export-lifecycle-claim-stale",

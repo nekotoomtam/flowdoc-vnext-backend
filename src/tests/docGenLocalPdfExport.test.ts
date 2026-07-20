@@ -1,18 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  createVNextPdfMeasuredDrawContractV1,
-  type VNextPdfMeasuredDrawContractRequestV1,
-} from "@flowdoc/vnext-core"
-import thaiOnePageRequest from "@flowdoc/vnext-core/fixtures/pdf-pilot-thai-one-page-request.v1.json" with { type: "json" }
 import {
   createFlowDocBackendDocGenLocalArtifactBindingV1,
   createFlowDocBackendPdfExportFileContentAddressedStoreV1,
   handleFlowDocBackendPdfExportRouteV1,
   runFlowDocBackendPdfExportEndToEndCandidateV1,
-  type FlowDocBackendDocGenLocalArtifactMaterializerV1,
   type FlowDocBackendPdfExportAuthenticatedIdentityV1,
 } from "../index.js"
 import {
@@ -21,75 +15,9 @@ import {
   createDocGenLocalAdmissionFixture,
   docGenLocalDirectRequest,
 } from "./helpers/docGenLocalFixture.js"
+import { docGenLocalPdfMaterializer } from "./helpers/docGenLocalPdfExportFixture.js"
 import { createInMemoryPdfExportWorkflowRepositories } from "./helpers/pdfExportWorkflowFixture.js"
-
-interface SubsetManifestV1 {
-  subsetId: string
-  fontId: string
-  postScriptName: string
-  subsetPrefix: string
-  source: { path: string }
-  subset: { path: string; sha256: string }
-}
-
-const CORE_ROOT = resolve(process.cwd(), "../flowdoc-vnext-core")
 const CALLER_KEY = "pdf-export:docgen-e4:test"
-
-function readJson<T>(path: string): T {
-  return JSON.parse(readFileSync(resolve(CORE_ROOT, path), "utf8")) as T
-}
-
-function materializer(onMaterialize?: () => void): FlowDocBackendDocGenLocalArtifactMaterializerV1 {
-  const measuredRequest = structuredClone(thaiOnePageRequest) as VNextPdfMeasuredDrawContractRequestV1
-  measuredRequest.rendererProfileId = "flowdoc-local-measured-document-v1"
-  const measuredDrawContract = createVNextPdfMeasuredDrawContractV1(measuredRequest)
-  if (measuredDrawContract.status !== "consumable") throw new Error(JSON.stringify(measuredDrawContract.issues))
-  const manifest = readJson<SubsetManifestV1>(
-    "packages/pdf-renderer-pilot/fixtures/font-subset-manifest.v1.json",
-  )
-  const sourceBytes = readFileSync(resolve(CORE_ROOT, manifest.source.path))
-  const subsetBytes = readFileSync(resolve(CORE_ROOT, manifest.subset.path))
-  const glyphCount = measuredDrawContract.pages.reduce((sum, page) => sum + page.commands.reduce(
-    (pageSum, command) => pageSum + (command.kind === "glyph-run" ? command.glyphs.length : 0),
-    0,
-  ), 0)
-  return {
-    materializerId: "materializer:docgen-e4-test",
-    materializerVersion: "1.0.0",
-    implementationFingerprint: `sha256:${"6".repeat(64)}`,
-    rendererProfileId: measuredDrawContract.rendererProfileId,
-    measurementProfileId: measuredDrawContract.measurementProfileId,
-    async materialize() {
-      onMaterialize?.()
-      return {
-        status: "ready",
-        materializationFingerprint: `sha256:${"1".repeat(64)}`,
-        resolutionFingerprint: `sha256:${"2".repeat(64)}`,
-        measuredPlanFingerprint: `sha256:${"3".repeat(64)}`,
-        measuredBundleFingerprint: `sha256:${"4".repeat(64)}`,
-        artifactInputFingerprint: `sha256:${"5".repeat(64)}`,
-        measuredDrawContract: structuredClone(measuredDrawContract),
-        fontResources: [{
-          fontId: manifest.fontId,
-          subsetId: manifest.subsetId,
-          subsetPrefix: manifest.subsetPrefix,
-          postScriptName: manifest.postScriptName,
-          subsetSha256: manifest.subset.sha256,
-          sourceBytes: new Uint8Array(sourceBytes),
-          subsetBytes: new Uint8Array(subsetBytes),
-        }],
-        imageResources: [],
-        summary: {
-          pageCount: measuredDrawContract.summary.pageCount,
-          paintCommandCount: measuredDrawContract.summary.paintCommandCount,
-          glyphCount,
-          imageAssetCount: 0,
-        },
-        issues: [],
-      }
-    },
-  }
-}
 
 function security() {
   return {
@@ -127,7 +55,7 @@ describe("PDF export REALDOC-E.4 admitted DocGen artifact binding", () => {
     const binding = createFlowDocBackendDocGenLocalArtifactBindingV1({
       repository: docgen.repository,
       assets: docgen.assets,
-      materializer: materializer(() => { materializationCount += 1 }),
+      materializer: docGenLocalPdfMaterializer(() => { materializationCount += 1 }),
       operationIdFactory: () => "test-operation",
     })
     expect(binding.facts.durableGenerationPersistence).toBe(false)
@@ -261,13 +189,13 @@ describe("PDF export REALDOC-E.4 admitted DocGen artifact binding", () => {
     const firstBinding = createFlowDocBackendDocGenLocalArtifactBindingV1({
       repository: first.repository,
       assets: first.assets,
-      materializer: materializer(),
+      materializer: docGenLocalPdfMaterializer(),
       operationIdFactory: () => "first",
     })
     const secondBinding = createFlowDocBackendDocGenLocalArtifactBindingV1({
       repository: second.repository,
       assets: second.assets,
-      materializer: materializer(),
+      materializer: docGenLocalPdfMaterializer(),
       operationIdFactory: () => "second",
     })
     const resolveFor = (binding: typeof firstBinding, identity: FlowDocBackendPdfExportAuthenticatedIdentityV1, documentId: string) => (

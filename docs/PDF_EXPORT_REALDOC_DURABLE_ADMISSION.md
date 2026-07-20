@@ -104,5 +104,7 @@ npm run type-check
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.6.2` owns durable operation and artifact restart.
-Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.6.2` is now accepted in
+`docs/PDF_EXPORT_REALDOC_DURABLE_LIFECYCLE.md`. E.6.3 next owns durable local
+runtime wiring and Editor reload/reconnect acceptance. Production remains
+NO-GO.

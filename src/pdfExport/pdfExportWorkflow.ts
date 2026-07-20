@@ -72,6 +72,7 @@ export interface FlowDocBackendPdfExportWorkflowInputV1 {
     beforeRenderTransitionId: string
     beforeRenderExpectedHeadRevision: number
     beforeRenderAt: string
+    beforeRenderAlreadyPassed?: boolean
     beforePersistTransitionId: string
     now(): string
   }
@@ -584,6 +585,7 @@ export async function runFlowDocBackendPdfExportEndToEndCandidateV1(
         transitionId: input.rendererAttempt.beforeRenderTransitionId,
         expectedHeadRevision: input.rendererAttempt.beforeRenderExpectedHeadRevision,
         checkedAt: input.rendererAttempt.beforeRenderAt,
+        alreadyPassed: input.rendererAttempt.beforeRenderAlreadyPassed,
       },
       beforePersistTransitionId: input.rendererAttempt.beforePersistTransitionId,
       now: input.rendererAttempt.now,

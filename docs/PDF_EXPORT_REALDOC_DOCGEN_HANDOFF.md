@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.6.1` durable protected admission accepted after
-local Form/API parity. Durable operation/artifact reconstruction, default
-application mounting, and production behavior remain inactive; production
-remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.6.2` durable operation/lifecycle/artifact
+reconstruction accepted after durable protected admission. Editor reconnect,
+default application mounting, and production behavior remain inactive;
+production remains NO-GO.
 
 ## Direction
 
@@ -357,7 +357,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.6.1 adds optional SQLite protected admission with independent-process
   replay, transaction fault recovery, and corruption rejection. Accepted for
   local development.
-- E.6.2 accepts durable operation/lifecycle/artifact restart.
+- E.6.2 accepts durable operation/lifecycle/artifact restart, after-render
+  recovery, terminal replay, and verified 10-page 69C download. Accepted for
+  local development.
 - E.6.3 accepts Editor reconnect, failure, cancellation, and retry end to end.
 
 ## Explicitly Not Changed
@@ -413,8 +415,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.6.1` now accepts durable protected admission and exact
-fresh-process replay without rerunning mapping. `E.6.2` next owns durable
-operation/lifecycle/artifact reconstruction, followed by Editor reconnect in
-`E.6.3`. The default and production schedulers remain unchanged. Production
-remains NO-GO.
+`PDF-EXPORT-REALDOC-E.6.2` now accepts the optional complete durable local
+repository bundle and exact 69C recovery after an injected post-render fault.
+`E.6.3` next owns durable runtime wiring and Editor reconnect/cancel/retry UX.
+The default and production schedulers remain unchanged. Production remains
+NO-GO.

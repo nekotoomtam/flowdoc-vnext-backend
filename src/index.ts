@@ -1,6 +1,7 @@
 export * from "./artifacts/artifactJobExecution.js"
 export * from "./docgen/docGenLocalAdmission.js"
 export * from "./docgen/docGenLocalAdmissionSqliteRepository.js"
+export * from "./docgen/docGenLocalDurablePdfExport.js"
 export * from "./docgen/docGenLocalPdfExport.js"
 export * from "./docgen/docGenLocalUatArtifact.js"
 export * from "./docgen/docGenLocalHttpHandler.js"

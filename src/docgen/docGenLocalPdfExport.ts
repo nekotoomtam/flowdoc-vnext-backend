@@ -497,6 +497,8 @@ export function createFlowDocBackendDocGenLocalArtifactBindingV1(input: {
       let rendererClockOffset = 3
       const attempt = execution.attemptNumber ?? execution.lifecycleHead.attemptCount
       const id = (kind: string) => `${kind}:${operation.operationId}:attempt:${attempt}`
+      const recoveringAfterRender = execution.lifecycleHead.status === "claimed"
+        && execution.lifecycleHead.checkpoint === "before-persist"
       const expectedBeforeRenderRevision = execution.lifecycleHead.status === "claimed"
         && execution.lifecycleHead.checkpoint === "before-handoff"
         ? execution.lifecycleHead.headRevision + 1
@@ -526,7 +528,10 @@ export function createFlowDocBackendDocGenLocalArtifactBindingV1(input: {
           beforeRenderTransitionId: id("before-render"),
           beforeRenderExpectedHeadRevision: expectedBeforeRenderRevision,
           beforeRenderAt: new Date(executionAt + 2).toISOString(),
-          beforePersistTransitionId: id("before-persist"),
+          beforeRenderAlreadyPassed: recoveringAfterRender,
+          beforePersistTransitionId: recoveringAfterRender
+            ? `${id("before-persist")}:recovery:${execution.lifecycleHead.headRevision}`
+            : id("before-persist"),
           now: () => new Date(executionAt + rendererClockOffset++).toISOString(),
         },
         persistence: {

@@ -73,7 +73,10 @@ export interface FlowDocBackendRealdocE56LocalRuntimeV1 {
 
 export const REALDOC_LOCAL_OPERATION_DISPATCH_DELAY_MS = 10_000
 
-function prepare(coreRoot: string, semanticDirectory: string): FlowDocBackendRealdocE56PreparedInputV1 {
+export function prepareFlowDocBackendRealdocE56InputV1(
+  coreRoot: string,
+  semanticDirectory: string,
+): FlowDocBackendRealdocE56PreparedInputV1 {
   const command = resolve(
     coreRoot,
     "packages/uat-realdoc/local-runtime/prepare-69c-docgen-local-input.mjs",
@@ -98,7 +101,7 @@ function prepare(coreRoot: string, semanticDirectory: string): FlowDocBackendRea
   return prepared
 }
 
-function createUatMapper(
+export function createFlowDocBackendRealdocE56UatMapperV1(
   coreRoot: string,
   profile: VNextPublishedStructureMappingProfileV1,
 ): VNextPublishedStructureMappingRuntimeV1 {
@@ -155,7 +158,7 @@ export function createFlowDocBackendRealdocE56LocalRuntimeV1(input: {
     throw new Error("REALDOC-E.5.6 local runtime requires a bounded bearer token")
   }
   const coreRoot = resolve(input.coreRoot ?? resolve(process.cwd(), "../flowdoc-vnext-core"))
-  const prepared = prepare(coreRoot, resolve(input.semanticDirectory))
+  const prepared = prepareFlowDocBackendRealdocE56InputV1(coreRoot, resolve(input.semanticDirectory))
   const identity: FlowDocBackendPdfExportAuthenticatedIdentityV1 = {
     tenantId: "tenant:pdf-export-realdoc-e56-local",
     principalId: "principal:pdf-export-realdoc-e56-local",
@@ -184,7 +187,7 @@ export function createFlowDocBackendRealdocE56LocalRuntimeV1(input: {
     dataContract: prepared.dataContract,
     mappings: [{
       profile: prepared.mappingProfile,
-      mapper: createUatMapper(coreRoot, prepared.mappingProfile),
+      mapper: createFlowDocBackendRealdocE56UatMapperV1(coreRoot, prepared.mappingProfile),
     }],
   }])
   const admission = createFlowDocBackendDocGenLocalAdmissionServiceV1({
