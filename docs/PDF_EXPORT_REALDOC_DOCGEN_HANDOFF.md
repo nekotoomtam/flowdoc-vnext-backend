@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.5` temporary Editor JSON/mapping preparation
-accepted after the E.5.4 generated Form and E.5.3 Core test-input projection.
-Backend generation behavior, durable generation storage, and production
-behavior remain inactive; production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.5.6` local Published Preview binding accepted
+after the E.5.5 JSON/mapping preparation. Durable generation storage, default
+application mounting, and production behavior remain inactive; production
+remains NO-GO.
 
 ## Direction
 
@@ -294,6 +294,29 @@ no current document record becomes DocGen-eligible. E.3 remains the authority
 that fingerprints admitted text, resolves an allowlisted mapper by id/version,
 verifies full profile/execution identity, and returns redacted diagnostics.
 
+## E.5.6 Published Preview Handoff
+
+Backend now exposes one optional authenticated and authorized value-free
+`GET /docgen-local/published-preview-context` lookup by exact authoring document
+and revision. It returns the trusted E.5.3 projection, exact canonical mapping
+profiles, asset admission template, and 1 MiB payload limit. It returns no raw
+payload, business values, or executable mapper.
+
+Editor submits imported JSON through the existing E.3 admission. Backend runs
+the allowlisted mapper and validator, retains the protected canonical record,
+and returns the existing content-free receipt. Editor then submits the receipt's
+revision-zero instance pin through E.4 and observes the existing operation,
+status, and exact artifact lifecycle.
+
+The strict Editor parser validates the complete receipt and sanitizes it to the
+public mapped-result facts. Unexpected fields are rejected. Form data JSON
+remains a local `draft-not-validated` representation and does not enter E.3.
+
+The retained 69C evidence maps 749,929 UTF-8 bytes with 0 errors and 3 warnings,
+then completes a verified 10-page, 1,417,544-byte PDF. The full 200-page export
+is not tested and remains REALDOC-G. See
+`docs/PDF_EXPORT_REALDOC_PUBLISHED_PREVIEW.md`.
+
 ## Existing Local Lane
 
 LOCAL-A through LOCAL-G remains a canonical evidence lane. Its current request
@@ -324,13 +347,13 @@ the DocGen admission/resolution owner before reusing those pieces.
 - E.5.4 adds temporary generated Form state. Accepted without Backend changes.
 - E.5.5 adds temporary JSON/mapping preparation. Accepted without Backend
   changes.
-- E.5.6 through E.5.9 add Published and Draft Preview, lifecycle UX, and parity
-  evidence.
+- E.5.6 adds Published Preview over E.3/E.4. Accepted for local development.
+- E.5.7 through E.5.9 add Draft Preview, lifecycle UX, and parity evidence.
 - E.6 accepts restart, fault, cancellation, and identity evidence end to end.
 
 ## Explicitly Not Changed
 
-- no DocGen or PDF route, local command, or automatic worker-listener change;
+- no default application-server route or automatic worker-listener change;
 - no existing PDF request parser, eligibility lane, resolver, renderer, worker,
   durable repository, provider, or environment change;
 - no 69C mapping-profile/asset registry is mounted by default;
@@ -349,6 +372,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 - Existing PDF routes and local command composition remain unchanged.
 - One admitted 69C protected record completes the existing local artifact
   lifecycle and verified download without fixture substitution.
+- Published Preview uses that same E.3/E.4 path and returns no mapped business
+  values to Editor.
 
 ## RISK
 
@@ -374,7 +399,7 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.5` now accepts Editor-owned temporary JSON and exact
-mapping-profile preparation without a Backend route or Preview execution.
-`PDF-EXPORT-REALDOC-E.5.6` next binds Published Preview to the accepted E.3/E.4
-path. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.5.6` now binds Published Preview to the accepted E.3/E.4
+path with one optional value-free context and an isolated local evidence
+runtime. `PDF-EXPORT-REALDOC-E.5.7` next owns a separate immutable Draft Preview
+identity and admission path. Production remains NO-GO.

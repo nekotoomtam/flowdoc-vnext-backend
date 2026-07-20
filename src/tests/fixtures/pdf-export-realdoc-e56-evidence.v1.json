@@ -1,0 +1,47 @@
+{
+  "evidenceVersion": 1,
+  "phaseId": "PDF-EXPORT-REALDOC-E.5.6",
+  "status": "accepted",
+  "context": {
+    "authoring": {
+      "documentId": "realdoc-e5-6-published-preview",
+      "documentRevision": 0
+    },
+    "contextFingerprint": "sha256:ed5f1e175541d17984c7d1ead3425918227a6a73370a53d7276a0c1b6bfc5cd3",
+    "projectionFingerprint": "sha256:943231f2eba9d572c3c25b15eaf263cd122688f42da8231a71784a5858f08eb8",
+    "mappingProfileFingerprint": "sha256:6c9735d528979c6be56c2a3565f7513165283f66c7f4c4b2dd0eb83a21a14cd7",
+    "businessValuesIncluded": false
+  },
+  "admission": {
+    "lane": "adapted",
+    "mapping": "executed",
+    "runtimeValidation": "run-valid",
+    "canonicalInputFingerprint": "sha256:d7637f97325d65fd2b403c116bc6bef37d30e54aeeb38bf344d4cc1104de6eaa",
+    "profileFingerprint": "sha256:6c9735d528979c6be56c2a3565f7513165283f66c7f4c4b2dd0eb83a21a14cd7",
+    "diagnosticErrorCount": 0,
+    "diagnosticWarningCount": 3,
+    "canonicalBusinessDataExposed": false,
+    "rawPayloadRetained": false
+  },
+  "artifact": {
+    "state": "completed",
+    "pageCount": 10,
+    "byteLength": 1417544,
+    "sha256": "d8b3b45c4364639a8eb71fd13510fd1cbb8661d4a57ecc97d76aa23fb1688b61",
+    "verifiedDownload": true
+  },
+  "scale": {
+    "acceptedSlicePages": 10,
+    "fullDocumentPagesTested": false,
+    "fullDocumentTargetPages": 200,
+    "fullDocumentPhase": "PDF-EXPORT-REALDOC-G"
+  },
+  "contracts": {
+    "sameBackendAdmissionAsApiCaller": true,
+    "sameArtifactLifecycleAsApiCaller": true,
+    "browserMapper": false,
+    "mappedValuesReturnedToEditor": false,
+    "defaultApplicationServerMounted": false,
+    "productionBinding": false
+  }
+}

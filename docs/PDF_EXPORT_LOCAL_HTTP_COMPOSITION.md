@@ -216,5 +216,7 @@ by the Editor. It does not widen this PDF composition or expose DocGen values.
 E.5.2 accepts workspace Design/Preview navigation without calling this
 composition. E.5.3 accepts a pure Core UI-neutral input projection, E.5.4
 accepts temporary Editor Form state, and E.5.5 accepts JSON/mapping preparation
-without calling this composition. E.5.6 next binds Published Preview over the
-same admission and artifact path.
+without calling this composition. E.5.6 now adds a separate optional Published
+Preview context and isolated local runtime over the same E.3 admission and E.4
+artifact path. The accepted default composition remains unchanged and does not
+mount that context. E.5.7 next owns Draft Preview.
