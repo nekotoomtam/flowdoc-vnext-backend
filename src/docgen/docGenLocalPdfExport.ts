@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
 import {
   createVNextPdfExportRequestV1,
-  createVNextPublishedStructureCanonicalContentFingerprintV1,
   type VNextPdfExportProductionPolicyV1,
   type VNextPdfExportRequestV1,
   type VNextPdfExportSourceIdentityV1,
@@ -13,6 +12,7 @@ import type {
   FlowDocBackendDocGenTrustedAssetBytesV1,
   FlowDocBackendDocGenTrustedAssetRegistryV1,
 } from "./docGenLocalAdmission.js"
+import { parseFlowDocBackendDocGenLocalProtectedAdmissionRecordV1 } from "./docGenLocalAdmission.js"
 import type { FlowDocBackendPdfExportArtifactPersistenceRepositoryV1 } from "../pdfExport/pdfExportArtifactPersistence.js"
 import type { FlowDocBackendPdfExportContentAddressedStoreV1 } from "../pdfExport/pdfExportContentAddressedStore.js"
 import type { FlowDocBackendPdfExportLifecycleRepositoryV1 } from "../pdfExport/pdfExportLifecycleRepository.js"
@@ -113,7 +113,7 @@ export interface FlowDocBackendDocGenLocalArtifactBindingV1 {
     rawPayloadRead: false
     existingArtifactLifecycleReused: true
     defaultApplicationServerMounted: false
-    durableGenerationPersistence: false
+    durableGenerationPersistence: boolean
     productionBinding: false
   }
   policy: VNextPdfExportProductionPolicyV1
@@ -196,20 +196,7 @@ function requestFor(input: {
 }
 
 function verifyProtectedRecord(record: FlowDocBackendDocGenLocalProtectedAdmissionRecordV1): void {
-  const { recordFingerprint, ...recordFacts } = record
-  const { receiptFingerprint, ...receiptFacts } = record.receipt
-  if (
-    recordFingerprint !== fingerprint(recordFacts)
-    || receiptFingerprint !== fingerprint(receiptFacts)
-    || record.receipt.canonicalInputFingerprint !== fingerprint(record.canonicalInput)
-    || record.receipt.canonicalContentFingerprint
-      !== createVNextPublishedStructureCanonicalContentFingerprintV1(record.canonicalInput)
-    || record.receipt.instance.instanceId !== record.canonicalInput.dataSnapshot.instance.instanceId
-    || record.receipt.instance.revision !== record.canonicalInput.dataSnapshot.instance.revision
-    || record.receipt.structure.structureId !== record.receipt.instance.structureVersion.structureId
-    || record.receipt.structure.structureVersionId !== record.receipt.instance.structureVersion.structureVersionId
-    || record.receipt.structure.versionOrdinal !== record.receipt.instance.structureVersion.versionOrdinal
-  ) throw new Error("protected DocGen admission record identity drifted")
+  parseFlowDocBackendDocGenLocalProtectedAdmissionRecordV1(record)
 }
 
 function verifyMaterializedArtifact(
@@ -454,7 +441,7 @@ export function createFlowDocBackendDocGenLocalArtifactBindingV1(input: {
       rawPayloadRead: false,
       existingArtifactLifecycleReused: true,
       defaultApplicationServerMounted: false,
-      durableGenerationPersistence: false,
+      durableGenerationPersistence: input.repository.storage.durablePersistence,
       productionBinding: false,
     },
     policy: structuredClone(POLICY),

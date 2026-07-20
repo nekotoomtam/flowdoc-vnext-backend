@@ -77,6 +77,8 @@ widening their public schemas.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.6` proves identity, restart, failure, cancellation, retry,
-and lifecycle behavior through all three repositories. Production remains
-NO-GO.
+`PDF-EXPORT-REALDOC-E.6.1` is now accepted in
+`docs/PDF_EXPORT_REALDOC_DURABLE_ADMISSION.md`. It proves durable protected
+admission and fresh-process replay. E.6.2 next owns durable
+operation/lifecycle/artifact reconstruction, followed by Editor reconnect in
+E.6.3. Production remains NO-GO.

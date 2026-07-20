@@ -17,6 +17,7 @@ import {
   createFlowDocBackendDocGenInMemoryTrustedAssetRegistryV1,
   createFlowDocBackendDocGenLocalAdmissionServiceV1,
   createFlowDocBackendDocGenTrustedStructureRegistryV1,
+  type FlowDocBackendDocGenLocalAdmissionRepositoryV1,
   type FlowDocBackendDocGenLocalAdmissionRequestV1,
   type FlowDocBackendDocGenTrustedAssetBytesV1,
   type FlowDocBackendPdfExportAuthenticatedIdentityV1,
@@ -237,12 +238,13 @@ export function docGenLocalAdaptedRequest(
 
 export function createDocGenLocalAdmissionFixture(input: {
   mapper?: VNextPublishedStructureMappingRuntimeV1
+  repository?: FlowDocBackendDocGenLocalAdmissionRepositoryV1
   trustedAssets?: readonly FlowDocBackendDocGenTrustedAssetBytesV1[]
   now?: () => string
 } = {}) {
   const contract = docGenLocalDataContract()
   const mapper = input.mapper ?? docGenLocalMapper()
-  const repository = createFlowDocBackendDocGenInMemoryAdmissionRepositoryV1()
+  const repository = input.repository ?? createFlowDocBackendDocGenInMemoryAdmissionRepositoryV1()
   const structures = createFlowDocBackendDocGenTrustedStructureRegistryV1([{
     dataContract: contract,
     mappings: [{ profile: docGenLocalMappingProfile(contract), mapper }],

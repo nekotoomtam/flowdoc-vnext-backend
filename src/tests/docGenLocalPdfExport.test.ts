@@ -130,6 +130,7 @@ describe("PDF export REALDOC-E.4 admitted DocGen artifact binding", () => {
       materializer: materializer(() => { materializationCount += 1 }),
       operationIdFactory: () => "test-operation",
     })
+    expect(binding.facts.durableGenerationPersistence).toBe(false)
     const repositories = createInMemoryPdfExportWorkflowRepositories()
     const root = mkdtempSync(join(tmpdir(), "flowdoc-docgen-e4-"))
     roots.push(root)

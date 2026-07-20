@@ -1,9 +1,9 @@
 # PDF Export REALDOC DocGen Backend Handoff
 
-Status: `PDF-EXPORT-REALDOC-E.5.9` local Form/API parity accepted after
-Published Preview, Draft Preview, and lifecycle UX. Durable generation storage,
-default application mounting, and production behavior remain inactive;
-production remains NO-GO.
+Status: `PDF-EXPORT-REALDOC-E.6.1` durable protected admission accepted after
+local Form/API parity. Durable operation/artifact reconstruction, default
+application mounting, and production behavior remain inactive; production
+remains NO-GO.
 
 ## Direction
 
@@ -354,7 +354,11 @@ the DocGen admission/resolution owner before reusing those pieces.
   UX. Accepted for local development.
 - E.5.9 adds Form/API canonical-content parity while preserving distinct
   instance identities. Accepted for local development.
-- E.6 accepts restart, fault, cancellation, and identity evidence end to end.
+- E.6.1 adds optional SQLite protected admission with independent-process
+  replay, transaction fault recovery, and corruption rejection. Accepted for
+  local development.
+- E.6.2 accepts durable operation/lifecycle/artifact restart.
+- E.6.3 accepts Editor reconnect, failure, cancellation, and retry end to end.
 
 ## Explicitly Not Changed
 
@@ -389,9 +393,9 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 - Reusing the current document-pin request shape for DocGen would hide the
   Published Structure, mapping, payload, and Data Snapshot identities.
-- The protected generation repository remains process-local; artifact
-  persistence is durable-capable but fresh-process generation reconstruction
-  remains E.6 evidence.
+- The protected admission repository is now optionally durable and passes
+  fresh-process replay. Operation/lifecycle/artifact reconstruction still
+  remains E.6.2 evidence.
 - Running source mapping in the browser would still create a second resolver
   and make external API behavior diverge from pre-test.
 - Rendered REALDOC-D/E.4 continuation pages retain a renderer-pilot defect that
@@ -409,8 +413,8 @@ the DocGen admission/resolution owner before reusing those pieces.
 
 ## Next Phase
 
-`PDF-EXPORT-REALDOC-E.5.9` now accepts direct Form/adapted API canonical-content
-parity over the shared E.3/E.4 validation and artifact path. The content
-fingerprint does not replace instance-bound replay or artifact identity. E.6
-next owns restart, reconstruction, failure, and lifecycle acceptance. The
-default and production schedulers remain unchanged. Production remains NO-GO.
+`PDF-EXPORT-REALDOC-E.6.1` now accepts durable protected admission and exact
+fresh-process replay without rerunning mapping. `E.6.2` next owns durable
+operation/lifecycle/artifact reconstruction, followed by Editor reconnect in
+`E.6.3`. The default and production schedulers remain unchanged. Production
+remains NO-GO.

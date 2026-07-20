@@ -141,6 +141,13 @@ Current slice:
   shared Editor workspace tabs. E.5.3 adds only Core's pure test-input
   projection; Backend routes and Preview execution remain unchanged in
   `docs/PDF_EXPORT_REALDOC_DOCGEN_HANDOFF.md`
+- PDF export REALDOC-E.5.4 through E.5.9 accept temporary generated Form/JSON,
+  Published and Draft Preview, lifecycle UX, and Form/API canonical-content
+  parity over the optional local runtime.
+- PDF export REALDOC-E.6.1 adds an optional integrity-checked SQLite protected
+  admission repository. Independent-process replay, before/after-commit fault
+  recovery, and corruption rejection pass; durable operation/artifact restart,
+  default mounting, scale work, and production remain pending.
 - Phase 385 locks the durable composition scheduler architecture around pinned
   source revisions, immutable chunks, a compare-and-swap job head, exact core
   demand/window transitions, and terminal finalization; runtime starts in the

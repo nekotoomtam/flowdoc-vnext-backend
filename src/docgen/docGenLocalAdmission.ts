@@ -2,6 +2,8 @@ import { createHash } from "node:crypto"
 import {
   DataSnapshotV2Schema,
   ImageAssetRegistryV1Schema,
+  VNextDocumentInstanceIdentityV1Schema,
+  VNextPublishedStructureCanonicalSnapshotInputV1Schema,
   VNextPublishedStructureGenerationDataContractV1Schema,
   VNextPublishedStructureMappingProfileV1Schema,
   VNextPublishedStructureVersionRefV1Schema,
@@ -32,6 +34,11 @@ export const FLOWDOC_BACKEND_DOCGEN_LOCAL_MAX_ID_LENGTH_V1 = 512
 
 const NonBlankIdSchema = z.string().min(1).max(FLOWDOC_BACKEND_DOCGEN_LOCAL_MAX_ID_LENGTH_V1)
   .refine((value) => value.trim().length > 0, { message: "identity must not be whitespace" })
+const FingerprintSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/u)
+const CountSchema = z.number().int().nonnegative()
+const ExactIsoSchema = z.string().refine((value) => (
+  Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value
+), { message: "timestamp must be exact ISO-8601 UTC" })
 
 export const FlowDocBackendDocGenLocalAdmissionRequestV1Schema = z.object({
   contractVersion: z.literal(FLOWDOC_BACKEND_DOCGEN_LOCAL_ADMISSION_CONTRACT_VERSION),
@@ -170,7 +177,7 @@ export interface FlowDocBackendDocGenLocalAdmissionReceiptV1 {
     exactAssetBytesVerified: true
     rawPayloadRetained: false
     canonicalBusinessDataExposed: false
-    durablePersistence: false
+    durablePersistence: boolean
     workerEnqueued: false
     productionBinding: false
   }
@@ -198,6 +205,12 @@ export interface FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 {
 }
 
 export interface FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
+  storage: {
+    kind: "memory" | "sqlite"
+    durablePersistence: boolean
+    processRestartReplay: boolean
+    productionBinding: false
+  }
   readByIdempotency(input: {
     tenantId: string
     principalId: string
@@ -209,6 +222,132 @@ export interface FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
   readByAdmissionId(admissionId: string): Promise<FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 | null>
   readByInstanceId(instanceId: string): Promise<FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 | null>
 }
+
+const RuntimeDiagnosticIssueSchema = z.object({
+  source: z.enum(["planning", "payload", "mapping", "validation"]),
+  severity: z.literal("error"),
+  code: z.enum([
+    "generation-input-blocked",
+    "unexpected-adapted-runtime",
+    "missing-adapted-runtime",
+    "payload-byte-length-mismatch",
+    "payload-fingerprint-mismatch",
+    "invalid-json-payload",
+    "mapping-execution-identity-mismatch",
+    "mapping-execution-failed",
+    "invalid-mapping-result",
+    "mapping-rejected",
+    "invalid-canonical-input",
+    "invalid-scalar-value-type",
+    "missing-instance-media",
+    "missing-required-collection-item-field",
+    "required-collection-item-value-null",
+    "invalid-collection-item-value-type",
+    "unsupported-published-image-default",
+  ]),
+  path: z.string().max(2_048),
+  message: z.string().min(1).max(4_096),
+  detailCode: NonBlankIdSchema.optional(),
+}).strict()
+
+const RuntimeDiagnosticWarningSchema = z.object({
+  source: z.enum(["mapping", "validation"]),
+  severity: z.literal("warning"),
+  code: z.enum(["mapping-warning", "collection-item-default-applied"]),
+  path: z.string().max(2_048),
+  message: z.string().min(1).max(4_096),
+  detailCode: NonBlankIdSchema.optional(),
+}).strict()
+
+const RuntimeDiagnosticsSchema = z.object({
+  contentFree: z.literal(true),
+  issues: z.array(RuntimeDiagnosticIssueSchema),
+  warnings: z.array(RuntimeDiagnosticWarningSchema),
+  summary: z.object({
+    errorCount: CountSchema,
+    warningCount: CountSchema,
+    scalarValueCount: CountSchema,
+    collectionSnapshotCount: CountSchema,
+    collectionItemCount: CountSchema,
+    mediaAssetCount: CountSchema,
+    defaultAppliedCount: CountSchema,
+  }).strict(),
+  diagnosticsFingerprint: FingerprintSchema,
+}).strict()
+
+export const FlowDocBackendDocGenLocalAdmissionReceiptV1Schema: z.ZodType<
+  FlowDocBackendDocGenLocalAdmissionReceiptV1
+> = z.object({
+  source: z.literal(FLOWDOC_BACKEND_DOCGEN_LOCAL_ADMISSION_V1_SOURCE),
+  contractVersion: z.literal(FLOWDOC_BACKEND_DOCGEN_LOCAL_ADMISSION_CONTRACT_VERSION),
+  kind: z.literal("docgen-local-admission-receipt"),
+  admissionId: NonBlankIdSchema,
+  status: z.enum(["ready", "ready-with-warnings"]),
+  lane: z.enum(["direct", "adapted"]),
+  scope: z.object({ tenantId: NonBlankIdSchema, principalId: NonBlankIdSchema }).strict(),
+  structure: VNextPublishedStructureVersionRefV1Schema,
+  dataContract: z.object({
+    dataContractId: NonBlankIdSchema,
+    dataContractFingerprint: FingerprintSchema,
+    publishedStructureFingerprint: FingerprintSchema,
+  }).strict(),
+  instance: VNextDocumentInstanceIdentityV1Schema,
+  inputFingerprint: FingerprintSchema,
+  canonicalInputFingerprint: FingerprintSchema,
+  canonicalContentFingerprint: FingerprintSchema,
+  mappingProfile: z.object({
+    mappingProfileId: NonBlankIdSchema,
+    mappingProfileVersion: z.number().int().positive(),
+    profileFingerprint: FingerprintSchema,
+  }).strict().nullable(),
+  assets: z.object({
+    registryFingerprint: FingerprintSchema,
+    assetCount: CountSchema,
+    verifiedByteCount: CountSchema,
+  }).strict(),
+  diagnostics: RuntimeDiagnosticsSchema,
+  nextStep: z.literal("materialization"),
+  execution: z.object({
+    mapping: z.enum(["not-required", "executed"]),
+    runtimeValidation: z.literal("run-valid"),
+    materialization: z.literal("not-run"),
+    resolution: z.literal("not-run"),
+    measurement: z.literal("not-run"),
+    pagination: z.literal("not-run"),
+    artifact: z.literal("not-run"),
+  }).strict(),
+  contracts: z.object({
+    backendOwnedInstance: z.literal(true),
+    exactPublishedStructureVersion: z.literal(true),
+    trustedMapperOnly: z.literal(true),
+    exactAssetBytesVerified: z.literal(true),
+    rawPayloadRetained: z.literal(false),
+    canonicalBusinessDataExposed: z.literal(false),
+    durablePersistence: z.boolean(),
+    workerEnqueued: z.literal(false),
+    productionBinding: z.literal(false),
+  }).strict(),
+  receiptFingerprint: FingerprintSchema,
+}).strict()
+
+export const FlowDocBackendDocGenLocalProtectedAdmissionRecordV1Schema: z.ZodType<
+  FlowDocBackendDocGenLocalProtectedAdmissionRecordV1
+> = z.object({
+  source: z.literal(FLOWDOC_BACKEND_DOCGEN_LOCAL_ADMISSION_V1_SOURCE),
+  contractVersion: z.literal(FLOWDOC_BACKEND_DOCGEN_LOCAL_ADMISSION_CONTRACT_VERSION),
+  kind: z.literal("docgen-local-protected-admission-record"),
+  admissionId: NonBlankIdSchema,
+  scope: z.object({ tenantId: NonBlankIdSchema, principalId: NonBlankIdSchema }).strict(),
+  idempotency: z.object({
+    callerKey: NonBlankIdSchema,
+    requestFingerprint: FingerprintSchema,
+  }).strict(),
+  receipt: FlowDocBackendDocGenLocalAdmissionReceiptV1Schema,
+  canonicalInput: VNextPublishedStructureCanonicalSnapshotInputV1Schema,
+  runtimeReceiptFingerprint: FingerprintSchema,
+  acceptedAt: ExactIsoSchema,
+  recordFingerprint: FingerprintSchema,
+}).strict()
 
 export type FlowDocBackendDocGenLocalAdmissionResultV1 =
   | {
@@ -245,6 +384,52 @@ function canonicalValue(value: unknown): unknown {
 
 function fingerprint(value: unknown): string {
   return `sha256:${createHash("sha256").update(JSON.stringify(canonicalValue(value))).digest("hex")}`
+}
+
+export function parseFlowDocBackendDocGenLocalProtectedAdmissionRecordV1(
+  value: unknown,
+): FlowDocBackendDocGenLocalProtectedAdmissionRecordV1 {
+  const parsed = FlowDocBackendDocGenLocalProtectedAdmissionRecordV1Schema.safeParse(value)
+  if (!parsed.success) throw new Error("protected DocGen admission record does not match its strict schema")
+  const record = parsed.data
+  const { recordFingerprint, ...recordFacts } = record
+  const { receiptFingerprint, ...receiptFacts } = record.receipt
+  const diagnostics = record.receipt.diagnostics
+  const { diagnosticsFingerprint, ...diagnosticFacts } = diagnostics
+  const receiptInstanceFingerprint = fingerprint(record.receipt.instance)
+  const canonicalInstances = [
+    record.canonicalInput.dataSnapshot.instance,
+    record.canonicalInput.mediaSnapshot.instance,
+    ...record.canonicalInput.collectionSnapshots.map((snapshot) => snapshot.instance),
+  ]
+  const structure = record.receipt.structure
+  const instanceStructure = record.receipt.instance.structureVersion
+  const expectedStatus = diagnostics.summary.warningCount > 0 ? "ready-with-warnings" : "ready"
+  const expectedMapping = record.receipt.lane === "direct" ? "not-required" : "executed"
+
+  if (
+    recordFingerprint !== fingerprint(recordFacts)
+    || receiptFingerprint !== fingerprint(receiptFacts)
+    || diagnosticsFingerprint !== fingerprint(diagnosticFacts)
+    || diagnostics.summary.errorCount !== diagnostics.issues.length
+    || diagnostics.summary.warningCount !== diagnostics.warnings.length
+    || record.receipt.status !== expectedStatus
+    || record.receipt.execution.mapping !== expectedMapping
+    || (record.receipt.lane === "direct") !== (record.receipt.mappingProfile == null)
+    || record.admissionId !== record.receipt.admissionId
+    || fingerprint(record.scope) !== fingerprint(record.receipt.scope)
+    || record.idempotency.requestFingerprint !== record.receipt.inputFingerprint
+    || record.receipt.canonicalInputFingerprint !== fingerprint(record.canonicalInput)
+    || record.receipt.canonicalContentFingerprint
+      !== createVNextPublishedStructureCanonicalContentFingerprintV1(record.canonicalInput)
+    || record.receipt.assets.registryFingerprint !== fingerprint(record.canonicalInput.mediaSnapshot.registry)
+    || canonicalInstances.some((instance) => fingerprint(instance) !== receiptInstanceFingerprint)
+    || structure.structureId !== instanceStructure.structureId
+    || structure.structureVersionId !== instanceStructure.structureVersionId
+    || structure.versionOrdinal !== instanceStructure.versionOrdinal
+  ) throw new Error("protected DocGen admission record identity or integrity drifted")
+
+  return clone(record)
 }
 
 function sha256(bytes: Uint8Array): string {
@@ -425,21 +610,28 @@ FlowDocBackendDocGenLocalAdmissionRepositoryV1 {
   const byAdmissionId = new Map<string, FlowDocBackendDocGenLocalProtectedAdmissionRecordV1>()
   const byInstanceId = new Map<string, FlowDocBackendDocGenLocalProtectedAdmissionRecordV1>()
   return {
+    storage: {
+      kind: "memory",
+      durablePersistence: false,
+      processRestartReplay: false,
+      productionBinding: false,
+    },
     async readByIdempotency(input) {
       const record = byScope.get(scopeKey(input.tenantId, input.principalId, input.callerKey))
       return record == null ? null : clone(record)
     },
     async insert(record) {
-      const key = scopeKey(record.scope.tenantId, record.scope.principalId, record.idempotency.callerKey)
+      const verified = parseFlowDocBackendDocGenLocalProtectedAdmissionRecordV1(record)
+      const key = scopeKey(verified.scope.tenantId, verified.scope.principalId, verified.idempotency.callerKey)
       if (
         byScope.has(key)
-        || byAdmissionId.has(record.admissionId)
-        || byInstanceId.has(record.receipt.instance.instanceId)
+        || byAdmissionId.has(verified.admissionId)
+        || byInstanceId.has(verified.receipt.instance.instanceId)
       ) return "already-exists"
-      const stored = clone(record)
+      const stored = clone(verified)
       byScope.set(key, stored)
-      byAdmissionId.set(record.admissionId, stored)
-      byInstanceId.set(record.receipt.instance.instanceId, stored)
+      byAdmissionId.set(verified.admissionId, stored)
+      byInstanceId.set(verified.receipt.instance.instanceId, stored)
       return "inserted"
     },
     async readByAdmissionId(admissionId) {
@@ -729,7 +921,7 @@ export function createFlowDocBackendDocGenLocalAdmissionServiceV1(input: {
         exactAssetBytesVerified: true as const,
         rawPayloadRetained: false as const,
         canonicalBusinessDataExposed: false as const,
-        durablePersistence: false as const,
+        durablePersistence: repository.storage.durablePersistence,
         workerEnqueued: false as const,
         productionBinding: false as const,
       },
